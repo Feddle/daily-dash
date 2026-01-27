@@ -1,0 +1,54 @@
+# Daily-Dash Configuration
+
+app:
+  # Refresh interval for future auto-refresh feature
+  refresh_interval: 5m
+  # Global timeout for all operations
+  timeout: 30s
+
+api:
+  # Finnish Meteorological Institute (FMI) Weather API
+  fmi:
+    base_url: "https://opendata.fmi.fi/wfs"
+    location: "Turku"
+    timeout: 15s
+    retry_attempts: 3
+
+  # Föli Public Transit API
+  foli:
+    base_url: "https://data.foli.fi"
+    line: "1"
+    timeout: 10s
+    retry_attempts: 3
+
+  # Digitraffic Road Conditions API
+  digitraffic:
+    base_url: "https://tie.digitraffic.fi/api/v1"
+    region: "Turku"
+    timeout: 15s
+    retry_attempts: 3
+
+cache:
+  # Enable in-memory caching
+  enabled: true
+  # Maximum cache size in megabytes
+  max_size_mb: 10
+  # Time-to-live for different data types
+  ttl:
+    weather: 10m
+    transit: 2m
+    road: 15m
+
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  # Log format: console, json
+  format: "console"
+  # Log output: stdout, stderr, or file path
+  output: "stdout"
+
+ui:
+  # Key to trigger manual refresh
+  refresh_key: "r"
+  # Key to quit the application
+  quit_key: "q"
