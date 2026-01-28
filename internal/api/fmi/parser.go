@@ -3,6 +3,7 @@ package fmi
 import (
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/feddle/daily-dash/internal/domain"
@@ -50,6 +51,14 @@ func ParseWeatherResponse(xmlData []byte) (map[string]float64, string, error) {
 }
 
 func parseParamFromHref(href string) string {
+	// Try parsing as URL first
+	if u, err := url.Parse(href); err == nil {
+		if val := u.Query().Get("param"); val != "" {
+			return val
+		}
+	}
+
+	// Fallback to fragment
 	parts := strings.Split(href, "#")
 	if len(parts) > 1 {
 		return parts[1]

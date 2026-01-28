@@ -12,6 +12,7 @@ func NormalizeWeather(temperature, humidity, windSpeed float64, location, timest
 		// If parsing fails, use current time
 		parsedTime = time.Now()
 	}
+	parsedTime = parsedTime.Local()
 
 	// Determine conditions based on weather parameters
 	conditions := determineConditions(temperature, humidity, windSpeed)
