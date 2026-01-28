@@ -1,5 +1,8 @@
 .PHONY: build run test lint fmt clean help
 
+# Fix "GOPATH and GOROOT are the same" warning
+export GOPATH := $(HOME)/projects/go-workspace
+
 # Build variables
 BINARY_NAME=daily-dash
 BINARY_PATH=bin/$(BINARY_NAME)

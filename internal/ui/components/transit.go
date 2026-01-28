@@ -24,8 +24,6 @@ var (
 				Bold(true).
 				Foreground(lipgloss.Color("246"))
 
-	transitRowStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("255"))
 
 	transitOnTimeStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("82")) // Green
@@ -81,11 +79,12 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 				rowStyle = transitCancelledStyle
 			}
 
-			if dep.MinutesUntil == 0 {
+			switch dep.MinutesUntil {
+			case 0:
 				etaStr = "Now"
-			} else if dep.MinutesUntil == 1 {
+			case 1:
 				etaStr = "1 min"
-			} else {
+			default:
 				etaStr = fmt.Sprintf("%d min", dep.MinutesUntil)
 			}
 

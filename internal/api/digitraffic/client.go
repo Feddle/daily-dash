@@ -37,11 +37,11 @@ func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, 
 
 	// Digitraffic weather station API
 	// Documentation: https://www.digitraffic.fi/en/road-traffic/
-	url := fmt.Sprintf("%s/weathercam-stations/data", c.config.BaseURL)
+	// url := fmt.Sprintf("%s/weathercam-stations/data", c.config.BaseURL)
 
 	// Alternatively, use weather data API
 	// More reliable for road conditions
-	url = "https://tie.digitraffic.fi/api/weathercam/v1/stations"
+	url := "https://tie.digitraffic.fi/api/weathercam/v1/stations"
 
 	var responseData []byte
 	var fetchErr error

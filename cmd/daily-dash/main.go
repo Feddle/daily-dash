@@ -31,7 +31,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	log.Info("starting daily-dash",
 		zap.String("location", cfg.API.FMI.Location),

@@ -31,11 +31,12 @@ func New(level, format, output string) (*zap.Logger, error) {
 
 	// Create writer based on output
 	var writer zapcore.WriteSyncer
-	if output == "stdout" {
+	switch output {
+	case "stdout":
 		writer = zapcore.AddSync(os.Stdout)
-	} else if output == "stderr" {
+	case "stderr":
 		writer = zapcore.AddSync(os.Stderr)
-	} else {
+	default:
 		// Output to file
 		file, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
