@@ -8,7 +8,7 @@ import (
 	"github.com/feddle/daily-dash/internal/domain"
 )
 
-// ParseWeatherStationResponse parses the Digitraffic JSON response
+// ParseWeatherStationResponse parses the Digitraffic GeoJSON response
 func ParseWeatherStationResponse(jsonData []byte, regionFilter string) ([]RoadConditionData, error) {
 	var response WeatherStationResponse
 	if err := json.Unmarshal(jsonData, &response); err != nil {
@@ -17,104 +17,51 @@ func ParseWeatherStationResponse(jsonData []byte, regionFilter string) ([]RoadCo
 
 	var conditions []RoadConditionData
 
-	for _, station := range response.Stations {
+	for _, feature := range response.Features {
 		// Filter by region if specified
+		// Properties.Name usually contains city e.g. "kt40_Turku_Kärsämäki"
 		if regionFilter != "" {
-			if !strings.Contains(strings.ToLower(station.Properties.Name), strings.ToLower(regionFilter)) {
+			if !strings.Contains(strings.ToLower(feature.Properties.Name), strings.ToLower(regionFilter)) {
 				continue
 			}
 		}
 
-		// Extract temperature and road condition
-		var temperature float64
-		var roadCondition string
-		hasTemperature := false
-
-		for _, sensor := range station.Properties.SensorValues {
-			switch sensor.Name {
-			case "ILMA", "AIR_TEMPERATURE_1":
-				temperature = sensor.Value
-				hasTemperature = true
-			case "TIE_1", "ROAD_SURFACE_CONDITION_1":
-				// Road surface condition codes
-				// 1 = Dry, 2 = Moist, 3 = Wet, 4 = Slippery, etc.
-				roadCondition = interpretRoadCondition(sensor.Value)
-			}
+		// Since we don't have sensor values in this metadata endpoint, we use the station state
+		state := feature.Properties.State
+		
+		// Map state to condition
+		// States: OK, FAULT, DOUBT, CANCELLED, null
+		condition := "Normal"
+		if state == "OK" {
+			condition = "Normal"
+		} else if state != "" {
+			condition = state // e.g. FAULT
 		}
 
-		// Only add if we have useful data
-		if hasTemperature || roadCondition != "" {
-			route := "Unknown"
-			if station.Properties.RoadAddress != nil {
-				route = fmt.Sprintf("Route %d", station.Properties.RoadAddress.Road)
-			}
-
-			if roadCondition == "" {
-				roadCondition = "Normal"
-			}
-
-			data := RoadConditionData{
-				Route:       route,
-				Temperature: temperature,
-				Condition:   roadCondition,
-				Location:    station.Properties.Name,
-				UpdatedTime: station.Properties.DataUpdatedTime,
-			}
-
-			conditions = append(conditions, data)
+		// Create data entry
+		data := RoadConditionData{
+			Route:       feature.Properties.Name,
+			Temperature: 0, // Not available in metadata
+			Condition:   condition,
+			Location:    feature.Properties.Name,
+			UpdatedTime: feature.Properties.DataUpdatedTime,
 		}
+
+		conditions = append(conditions, data)
 	}
 
 	return conditions, nil
-}
-
-// interpretRoadCondition interprets the road surface condition code
-func interpretRoadCondition(code float64) string {
-	// Digitraffic road surface condition codes
-	switch int(code) {
-	case 0:
-		return "Unknown"
-	case 1:
-		return "Dry"
-	case 2:
-		return "Moist"
-	case 3:
-		return "Wet"
-	case 4:
-		return "Slippery"
-	case 5:
-		return "Frosty"
-	case 6:
-		return "Snowy"
-	case 7:
-		return "Icy"
-	case 8:
-		return "Slushy"
-	default:
-		return "Normal"
-	}
 }
 
 // DetermineRoadCondition maps condition string to domain RoadCondition enum
 func DetermineRoadCondition(conditionStr string, temperature float64) domain.RoadCondition {
 	lower := strings.ToLower(conditionStr)
 
-	// Difficult conditions
-	if strings.Contains(lower, "icy") || strings.Contains(lower, "slippery") {
-		return domain.Difficult
+	// If using metadata states
+	if strings.Contains(lower, "fault") || strings.Contains(lower, "doubt") {
+		return domain.Difficult // Or generic warning
 	}
 
-	// Slippery conditions
-	if strings.Contains(lower, "frosty") || strings.Contains(lower, "snowy") ||
-		strings.Contains(lower, "slushy") || strings.Contains(lower, "wet") {
-		return domain.Slippery
-	}
-
-	// Temperature-based assessment
-	if temperature < 0 && (strings.Contains(lower, "moist") || strings.Contains(lower, "wet")) {
-		return domain.Slippery
-	}
-
-	// Normal conditions
+	// Normal defaults
 	return domain.Normal
 }

@@ -19,8 +19,6 @@ func ParseWeatherResponse(xmlData []byte) (map[string]float64, string, error) {
 		return nil, "", domain.ErrInvalidResponse
 	}
 
-	// Extract observations: FMI returns multiple members, one for each parameter
-	// We need to collect temperature, humidity, wind speed, etc.
 	observations := make(map[string]float64)
 	var lastTime string
 
@@ -32,37 +30,51 @@ func ParseWeatherResponse(xmlData []byte) (map[string]float64, string, error) {
 
 		// Get the most recent point
 		latestPoint := points[len(points)-1]
-		lastTime = latestPoint.TVP.Time
+		// Update lastTime to the most recent timestamp found
+		if latestPoint.TVP.Time > lastTime {
+			lastTime = latestPoint.TVP.Time
+		}
 		value := latestPoint.TVP.Value
 
-		// FMI returns separate members for each parameter
-		// We'll use a simple heuristic: collect all values
-		// In a real implementation, you'd parse the parameter name from the observation metadata
-
-		// For now, we'll assume the order: temperature, humidity, wind speed
-		// This is a simplified parser - a production version would parse parameter names
-		observations[fmt.Sprintf("param_%d", len(observations))] = value
+		// Identify parameter from ObservedProperty
+		// Href example: http://xml.fmi.fi/schema/wfs/2.0/Query/StoredQuery/fmi::observations::weather::timevaluepair#t2m
+		href := member.PointTimeSeriesObservation.ObservedProperty.Href
+		param := parseParamFromHref(href)
+		
+		if param != "" {
+			observations[param] = value
+		}
 	}
 
 	return observations, lastTime, nil
 }
 
+func parseParamFromHref(href string) string {
+	parts := strings.Split(href, "#")
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 // ExtractWeatherData extracts specific weather parameters from observations
 func ExtractWeatherData(observations map[string]float64, timestamp string) *ObservationData {
-	// This is a simplified extraction
-	// In production, you'd map parameter IDs to specific measurements
 	data := &ObservationData{
 		Time: timestamp,
 	}
 
-	// Map parameters (this is simplified - real FMI data has parameter IDs)
-	if temp, ok := observations["param_0"]; ok {
+	// Map parameters based on FMI parameter names
+	// t2m: Temperature (deg C)
+	// rh: Relative Humidity (%)
+	// ws_10min: Wind Speed (m/s)
+	
+	if temp, ok := observations["t2m"]; ok {
 		data.Temperature = temp
 	}
-	if humidity, ok := observations["param_1"]; ok {
+	if humidity, ok := observations["rh"]; ok {
 		data.Humidity = humidity
 	}
-	if windSpeed, ok := observations["param_2"]; ok {
+	if windSpeed, ok := observations["ws_10min"]; ok {
 		data.WindSpeed = windSpeed
 	}
 
@@ -97,13 +109,4 @@ func DetermineConditions(temperature, humidity float64) string {
 	return "Partly Cloudy"
 }
 
-// ParseTime parses FMI timestamp format
-func ParseTime(timeStr string) string {
-	// FMI uses ISO 8601 format
-	// Example: 2024-01-27T15:00:00Z
-	parts := strings.Split(timeStr, "T")
-	if len(parts) >= 2 {
-		return strings.TrimSuffix(parts[1], "Z")
-	}
-	return timeStr
-}
+

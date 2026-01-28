@@ -26,6 +26,11 @@ func run() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Force log output to file to avoid interfering with TUI
+	if cfg.Logging.Output == "stdout" || cfg.Logging.Output == "stderr" {
+		cfg.Logging.Output = "daily-dash.log"
+	}
+
 	// Initialize logger
 	log, err := logger.New(cfg.Logging.Level, cfg.Logging.Format, cfg.Logging.Output)
 	if err != nil {

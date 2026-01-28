@@ -16,8 +16,16 @@ type Member struct {
 
 // PointTimeSeriesObservation represents a time series observation
 type PointTimeSeriesObservation struct {
-	XMLName xml.Name `xml:"PointTimeSeriesObservation"`
-	Result  Result   `xml:"result"`
+	XMLName          xml.Name         `xml:"PointTimeSeriesObservation"`
+	Result           Result           `xml:"result"`
+	ObservedProperty ObservedProperty `xml:"observedProperty"`
+}
+
+// ObservedProperty contains the parameter definition
+type ObservedProperty struct {
+	XMLName xml.Name `xml:"observedProperty"`
+	Href    string   `xml:"href,attr"`
+	Title   string   `xml:"title,attr"`
 }
 
 // Result contains the measurement time series

@@ -41,10 +41,9 @@ func (c *Client) FetchWeather(ctx context.Context) (*ObservationData, error) {
 		"service":        "WFS",
 		"version":        "2.0.0",
 		"request":        "getFeature",
-		"storedquery_id": "fmi::observations::weather::simple",
+		"storedquery_id": "fmi::observations::weather::timevaluepair",
 		"place":          c.config.Location,
-		"parameters":     "temperature,humidity,windspeedms",
-		"maxlocations":   "1",
+		"parameters":     "t2m,rh,ws_10min",
 	}
 
 	var responseData []byte

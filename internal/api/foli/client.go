@@ -37,7 +37,8 @@ func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
 
 	// Föli SIRI Stop Monitoring endpoint
 	// Documentation: https://data.foli.fi/
-	url := fmt.Sprintf("%s/siri/sm", c.config.BaseURL)
+	// We default to stop 300 (Puutori) if no stop is configured, as siri/sm requires a stop code
+	url := fmt.Sprintf("%s/siri/sm/300", c.config.BaseURL)
 
 	var responseData []byte
 	var fetchErr error
@@ -46,7 +47,8 @@ func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
 	err := api.RetryWithBackoff(ctx, func() error {
 		resp, err := c.httpClient.R().
 			SetContext(ctx).
-			SetHeader("Accept", "application/xml").
+			SetHeader("Accept", "application/json").
+			SetHeader("Accept-Encoding", "gzip").
 			Get(url)
 
 		if err != nil {

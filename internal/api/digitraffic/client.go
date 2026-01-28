@@ -41,7 +41,8 @@ func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, 
 
 	// Alternatively, use weather data API
 	// More reliable for road conditions
-	url := "https://tie.digitraffic.fi/api/weathercam/v1/stations"
+	// Use weather stations metadata API (V1)
+	url := "https://tie.digitraffic.fi/api/weather/v1/stations"
 
 	var responseData []byte
 	var fetchErr error
@@ -51,6 +52,7 @@ func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, 
 		resp, err := c.httpClient.R().
 			SetContext(ctx).
 			SetHeader("Accept", "application/json").
+			SetHeader("Accept-Encoding", "gzip").
 			Get(url)
 
 		if err != nil {

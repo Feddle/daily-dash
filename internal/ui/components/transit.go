@@ -42,7 +42,7 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 	if loading {
 		content = weatherLoadingStyle.Render("⟳ Loading transit data...")
 	} else if err != nil {
-		content = weatherErrorStyle.Render(fmt.Sprintf("⚠ Error: %v", err))
+		content = weatherErrorStyle.Render("⚠ Error: Data fetch failed")
 	} else if transit == nil || len(transit.Departures) == 0 {
 		content = weatherLabelStyle.Render("No transit data available")
 	} else {

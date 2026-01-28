@@ -8,7 +8,11 @@ import (
 
 // Init initializes the Bubble Tea model
 func (m Model) Init() tea.Cmd {
-	return nil
+	// Trigger initial data fetch
+	m.weatherLoading = true
+	m.transitLoading = true
+	m.roadLoading = true
+	return m.fetchAllCmd()
 }
 
 // Run starts the Bubble Tea application

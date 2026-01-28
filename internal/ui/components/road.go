@@ -36,7 +36,7 @@ func RenderRoad(roadConditions *domain.RoadConditions, loading bool, err error) 
 	if loading {
 		content = weatherLoadingStyle.Render("⟳ Loading road data...")
 	} else if err != nil {
-		content = weatherErrorStyle.Render(fmt.Sprintf("⚠ Error: %v", err))
+		content = weatherErrorStyle.Render("⚠ Error: Data fetch failed")
 	} else if roadConditions == nil || len(roadConditions.Segments) == 0 {
 		content = weatherLabelStyle.Render("No road data available")
 	} else {
