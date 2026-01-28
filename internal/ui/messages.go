@@ -1,7 +1,7 @@
 package ui
 
 import (
-
+	"time"
 
 	"github.com/feddle/daily-dash/internal/domain"
 )
@@ -43,4 +43,8 @@ type roadFetchErrorMsg struct {
 
 // General messages
 type clearCooldownMsg struct{}
+
+type tickMsg struct {
+	time time.Time
+}
 

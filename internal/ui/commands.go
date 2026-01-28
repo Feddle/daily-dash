@@ -79,3 +79,10 @@ func clearCooldownCmd() tea.Cmd {
 		return clearCooldownMsg{}
 	})
 }
+
+// tickCmd returns a command that triggers every minute to update the clock
+func tickCmd() tea.Cmd {
+	return tea.Tick(time.Minute, func(t time.Time) tea.Msg {
+		return tickMsg{time: t}
+	})
+}

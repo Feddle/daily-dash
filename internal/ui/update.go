@@ -114,6 +114,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clearCooldownMsg:
 		m.showCooldownMsg = false
 		return m, nil
+
+	case tickMsg:
+		return m, tickCmd()
 	}
 
 	return m, nil

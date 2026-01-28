@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/feddle/daily-dash/internal/ui/components"
 )
@@ -51,7 +53,8 @@ func (m Model) View() string {
 	)
 
 	// Build footer
-	footer := footerStyle.Render("Press 'r' to refresh | Press 'q' to quit")
+	timeStr := time.Now().Format("15:04")
+	footer := footerStyle.Render(timeStr + " | Press 'r' to refresh | Press 'q' to quit")
 
 	var notification string
 	if m.showCooldownMsg {

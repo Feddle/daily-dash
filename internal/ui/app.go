@@ -13,7 +13,10 @@ func (m Model) Init() tea.Cmd {
 	m.weatherLoading = true
 	m.transitLoading = true
 	m.roadLoading = true
-	return m.fetchAllCmd()
+	return tea.Batch(
+		m.fetchAllCmd(),
+		tickCmd(),
+	)
 }
 
 // Run starts the Bubble Tea application
