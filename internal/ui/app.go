@@ -2,6 +2,7 @@ package ui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/feddle/daily-dash/internal/config"
 	"github.com/feddle/daily-dash/internal/coordinator"
 	"go.uber.org/zap"
 )
@@ -16,8 +17,8 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Run starts the Bubble Tea application
-func Run(coord *coordinator.Coordinator, logger *zap.Logger) error {
-	model := NewModel(coord, logger)
+func Run(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Config) error {
+	model := NewModel(coord, logger, cfg)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

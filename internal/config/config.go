@@ -14,6 +14,7 @@ type Config struct {
 // AppConfig contains general application settings
 type AppConfig struct {
 	RefreshInterval time.Duration `mapstructure:"refresh_interval"`
+	RefreshCooldown time.Duration `mapstructure:"refresh_cooldown"`
 	Timeout         time.Duration `mapstructure:"timeout"`
 }
 

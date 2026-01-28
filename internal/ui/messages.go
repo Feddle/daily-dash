@@ -42,4 +42,5 @@ type roadFetchErrorMsg struct {
 }
 
 // General messages
+type clearCooldownMsg struct{}
 

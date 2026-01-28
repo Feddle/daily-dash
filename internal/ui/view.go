@@ -7,8 +7,12 @@ import (
 
 var (
 	footerStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(2)
+			Foreground(lipgloss.Color("241")).
+			MarginTop(2)
+
+	notificationStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("11")). // Yellow
+				Italic(true)
 )
 
 // View renders the current state of the UI
@@ -49,11 +53,18 @@ func (m Model) View() string {
 	// Build footer
 	footer := footerStyle.Render("Press 'r' to refresh | Press 'q' to quit")
 
+	var notification string
+	if m.showCooldownMsg {
+		notification = notificationStyle.Render("Please wait a few seconds before refreshing again...")
+	}
+
 	// Combine all elements
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"",
 		content,
+		"",
+		notification,
 		footer,
 	)
 }

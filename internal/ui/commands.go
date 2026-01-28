@@ -72,3 +72,10 @@ func (m Model) fetchAllCmd() tea.Cmd {
 		m.fetchRoadCmd(),
 	)
 }
+
+// clearCooldownCmd clears the cooldown message after a delay
+func clearCooldownCmd() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return clearCooldownMsg{}
+	})
+}

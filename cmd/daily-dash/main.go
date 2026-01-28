@@ -62,7 +62,7 @@ func run() error {
 	coord := coordinator.New(cfg, log, dataCache)
 
 	// Run the TUI application
-	if err := ui.Run(coord, log); err != nil {
+	if err := ui.Run(coord, log, cfg); err != nil {
 		return fmt.Errorf("failed to run UI: %w", err)
 	}
 

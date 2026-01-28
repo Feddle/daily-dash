@@ -3,6 +3,8 @@
 app:
   # Refresh interval for future auto-refresh feature
   refresh_interval: 5m
+  # Cooldown between manual refreshes to avoid API spam
+  refresh_cooldown: 5s
   # Global timeout for all operations
   timeout: 30s
 

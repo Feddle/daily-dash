@@ -17,7 +17,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "r":
+			// Cooldown to prevent API spamming
+			if time.Since(m.lastRefresh) < m.refreshCooldown {
+				m.logger.Info("refresh requested too soon, ignoring",
+					zap.Duration("since_last", time.Since(m.lastRefresh)),
+				)
+				m.showCooldownMsg = true
+				return m, clearCooldownCmd()
+			}
+
 			m.logger.Info("refresh requested")
+			m.lastRefresh = time.Now()
 			m.weatherLoading = true
 			m.transitLoading = true
 			m.roadLoading = true
@@ -99,6 +109,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.Error("road conditions fetch error",
 			zap.Error(msg.err),
 		)
+		return m, nil
+
+	case clearCooldownMsg:
+		m.showCooldownMsg = false
 		return m, nil
 	}
 
