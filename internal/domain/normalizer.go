@@ -75,10 +75,13 @@ func determineConditions(temperature, humidity, windSpeed float64) string {
 
 // NormalizeTransit converts Föli departure data to domain Transit model
 func NormalizeTransit(line, stop string, departureInfos []struct {
-	Stop          string
-	ScheduledTime string
-	ExpectedTime  string
-	Status        string
+	Stop            string
+	ScheduledTime   string
+	ExpectedTime    string
+	Status          string
+	DestinationStop string
+	ArrivalTime     time.Time
+	DebugInfo       string
 }) *Transit {
 	var departures []Departure
 
@@ -116,11 +119,14 @@ func NormalizeTransit(line, stop string, departureInfos []struct {
 		}
 
 		departure := Departure{
-			Stop:          info.Stop,
-			ScheduledTime: scheduledTime,
-			ExpectedTime:  expectedTime,
-			Status:        status,
-			MinutesUntil:  minutesUntil,
+			Stop:            info.Stop,
+			ScheduledTime:   scheduledTime,
+			ExpectedTime:    expectedTime,
+			Status:          status,
+			MinutesUntil:    minutesUntil,
+			DestinationStop: info.DestinationStop,
+			ArrivalTime:     info.ArrivalTime,
+			DebugInfo:       info.DebugInfo,
 		}
 
 		departures = append(departures, departure)

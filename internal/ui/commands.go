@@ -33,8 +33,8 @@ func (m Model) fetchTransitCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		m.logger.Debug("starting transit fetch", zap.String("stop", m.foliStartStop))
-		transit, err := m.coordinator.FetchTransit(ctx, m.foliStartStop)
+		m.logger.Debug("starting transit fetch", zap.String("stop", m.foliStartStop), zap.String("dest", m.foliEndStop))
+		transit, err := m.coordinator.FetchTransit(ctx, m.foliStartStop, m.foliStartStopName, m.foliEndStop, m.foliEndStopName)
 
 		if err != nil {
 			m.logger.Error("transit fetch failed")

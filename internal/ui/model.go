@@ -46,8 +46,10 @@ type Model struct {
 	loadingStops   bool
 	stops          []foli.GTFSStop
 	stopList       list.Model
-	foliStartStop  string
-	foliEndStop    string
+	foliStartStop      string
+	foliStartStopName  string
+	foliEndStop        string
+	foliEndStopName    string
 }
 
 // NewModel creates a new UI model
@@ -74,9 +76,11 @@ func NewModel(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Co
 		selectingStart:  false,
 		selectingEnd:    false,
 		loadingStops:    false,
-		stops:           nil,
-		stopList:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		foliStartStop:   "", // Will use default if empty
-		foliEndStop:     "",
+		stops:              nil,
+		stopList:           list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		foliStartStop:      "", // Will use default if empty
+		foliStartStopName:  "",
+		foliEndStop:        "",
+		foliEndStopName:    "",
 	}
 }

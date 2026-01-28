@@ -32,13 +32,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if stop, ok := selectedItem.(foli.GTFSStop); ok {
 						if m.selectingStart {
 							m.foliStartStop = stop.Code
+							m.foliStartStopName = stop.Name
 							m.selectingStart = false
 							m.selectingEnd = true
 							m.stopList.Title = "Select End Stop"
 							m.stopList.ResetFilter()
 							return m, nil
 						} else if m.selectingEnd {
-							m.foliEndStop = stop.Code
+							m.foliEndStop = stop.ID
+							m.foliEndStopName = stop.Name
 							m.selectingEnd = false
 							return m, m.fetchTransitCmd()
 						}

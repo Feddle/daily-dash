@@ -71,12 +71,16 @@ func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]Departur
 			ExpectedTime:  expectedTime,
 			Status:        status,
 			RecordedAt:    recordedAt,
+			TripID:        visit.TripRef,
 		}
 		
 		// Wait, I need actual Stop Name?
 		// Normalizer uses it to display.
 		// I'll just use the provided stopName.
-		departure.Stop = stopName
+		// Use the provided stopName if available to override the generic one
+		if stopName != "" {
+			departure.Stop = stopName
+		}
 
 		departures = append(departures, departure)
 	}

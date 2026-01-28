@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -78,13 +79,15 @@ func (c *Coordinator) FetchWeather(ctx context.Context) (*domain.Weather, error)
 	return weather, nil
 }
 
-// FetchTransit fetches transit data with caching for a specific stop (empty for default)
-func (c *Coordinator) FetchTransit(ctx context.Context, stopCode string) (*domain.Transit, error) {
+// FetchTransit fetches transit data with caching for a specific stop (empty for default) and optional destination stop
+// stopName and destStopName are optional overrides for display purposes
+func (c *Coordinator) FetchTransit(ctx context.Context, stopCode, stopName, destStopCode, destStopName string) (*domain.Transit, error) {
 	c.logger.Debug("fetching transit with caching")
 
 	// Check cache first
+	cacheKey := fmt.Sprintf("%s:%s:%s", cache.TransitCacheKey, stopCode, destStopCode)
 	if c.config.Cache.Enabled {
-		if cached, found := c.cache.Get(cache.TransitCacheKey); found {
+		if cached, found := c.cache.Get(cacheKey); found {
 			c.logger.Debug("returning cached transit data")
 			if transit, ok := cached.(*domain.Transit); ok {
 				return transit, nil
@@ -92,50 +95,98 @@ func (c *Coordinator) FetchTransit(ctx context.Context, stopCode string) (*domai
 		}
 	}
 
+	// Determine line to filter by
+	// If custom stops are used (stopCode provided and different from config), assume we want ALL lines
+	// Unless the user explicitly asked to filter? UI doesn't support that yet.
+	// For now: if stops are overridden, clear line filter so we can see ANY connection.
+	lineFilter := c.config.API.Foli.Line
+	if stopCode != "" && stopCode != c.config.API.Foli.Stop {
+		lineFilter = ""
+	}
+
 	// Cache miss or disabled - fetch from API
 	c.logger.Debug("cache miss, fetching from Föli API")
-	departures, err := c.foliClient.FetchTransit(ctx, stopCode)
+	departures, err := c.foliClient.FetchTransit(ctx, stopCode, destStopCode, lineFilter)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert to domain format
 	var departureData []struct {
-		Stop          string
-		ScheduledTime string
-		ExpectedTime  string
-		Status        string
+		Stop            string
+		ScheduledTime   string
+		ExpectedTime    string
+		Status          string
+		DestinationStop string
+		ArrivalTime     time.Time
+		DebugInfo       string
 	}
 
 	for _, dep := range departures {
+		currentStop := dep.Stop
+		if stopName != "" {
+			currentStop = stopName
+		}
+		
 		departureData = append(departureData, struct {
-			Stop          string
-			ScheduledTime string
-			ExpectedTime  string
-			Status        string
+			Stop            string
+			ScheduledTime   string
+			ExpectedTime    string
+			Status          string
+			DestinationStop string
+			ArrivalTime     time.Time
+			DebugInfo       string
 		}{
-			Stop:          dep.Stop,
-			ScheduledTime: dep.ScheduledTime,
-			ExpectedTime:  dep.ExpectedTime,
-			Status:        dep.Status,
+			Stop:            currentStop,
+			ScheduledTime:   dep.ScheduledTime,
+			ExpectedTime:    dep.ExpectedTime,
+			Status:          dep.Status,
+			DestinationStop: dep.DestinationStop,
+			ArrivalTime:     dep.DestinationArrival,
+			DebugInfo:       dep.DebugInfo,
 		})
 	}
 
 	// Determine stop name from departures or config
-	stopName := c.config.API.Foli.StopName
-	if len(departures) > 0 {
-		stopName = departures[0].Stop
+	finalStopName := c.config.API.Foli.StopName
+	if stopName != "" {
+		finalStopName = stopName
+	} else if len(departures) > 0 {
+		finalStopName = departures[0].Stop
 	}
-	if stopName == "" {
-		stopName = stopCode
+	if finalStopName == "" {
+		finalStopName = stopCode
 	}
 
 	// Normalize to domain model
-	transit := domain.NormalizeTransit(c.config.API.Foli.Line, stopName, departureData)
+	transit := domain.NormalizeTransit(lineFilter, finalStopName, departureData)
+
+	// Override destination names if provided
+	// Override destination names if provided, and ensure column visibility
+	if destStopName != "" {
+		for i := range transit.Departures {
+			// Always set the destination name so the UI shows the columns
+			// If the client didn't find a connection, ArrivalTime will be zero
+			transit.Departures[i].DestinationStop = destStopName
+		}
+		
+		// Check if any direct connection was found
+		foundConnection := false
+		for _, dep := range transit.Departures {
+			if !dep.ArrivalTime.IsZero() {
+				foundConnection = true
+				break
+			}
+		}
+		
+		if !foundConnection && len(transit.Departures) > 0 {
+			transit.Warning = fmt.Sprintf("No connection to %s (ID: %s)", destStopName, destStopCode)
+		}
+	}
 
 	// Store in cache
 	if c.config.Cache.Enabled {
-		c.cache.Set(cache.TransitCacheKey, transit, c.config.Cache.TTL.Transit)
+		c.cache.Set(cacheKey, transit, c.config.Cache.TTL.Transit)
 		c.logger.Debug("transit data cached",
 			zap.Duration("ttl", c.config.Cache.TTL.Transit),
 		)
@@ -249,7 +300,7 @@ func (c *Coordinator) FetchAll(ctx context.Context) (*domain.DashboardData, erro
 	g.Go(func() error {
 		fetchStart := time.Now()
 		// Use default configured stop
-		transit, err := c.FetchTransit(gCtx, "")
+		transit, err := c.FetchTransit(gCtx, "", "", "", "")
 		fetchDuration := time.Since(fetchStart)
 
 		mu.Lock()

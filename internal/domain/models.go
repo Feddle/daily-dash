@@ -18,6 +18,7 @@ type Transit struct {
 	Stop       string
 	Departures []Departure
 	Timestamp  time.Time
+	Warning    string
 }
 
 // Departure represents a single departure
@@ -26,7 +27,10 @@ type Departure struct {
 	ScheduledTime time.Time
 	ExpectedTime  time.Time
 	Status        DepartureStatus
-	MinutesUntil  int
+	MinutesUntil    int
+	DestinationStop string
+	ArrivalTime     time.Time
+	DebugInfo       string
 }
 
 // DepartureStatus represents the status of a departure
