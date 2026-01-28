@@ -9,7 +9,7 @@ import (
 )
 
 // ParseSIRIResponse parses the SIRI JSON response into departure information
-func ParseSIRIResponse(jsonData []byte, lineFilter string) ([]DepartureInfo, error) {
+func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]DepartureInfo, error) {
 	if len(jsonData) == 0 {
 		return nil, fmt.Errorf("empty response received")
 	}
@@ -75,8 +75,8 @@ func ParseSIRIResponse(jsonData []byte, lineFilter string) ([]DepartureInfo, err
 		
 		// Wait, I need actual Stop Name?
 		// Normalizer uses it to display.
-		// I'll just use "Kauppatori" since we queried Stop 1.
-		departure.Stop = "Kauppatori (T1)"
+		// I'll just use the provided stopName.
+		departure.Stop = stopName
 
 		departures = append(departures, departure)
 	}

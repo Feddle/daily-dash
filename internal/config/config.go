@@ -30,6 +30,8 @@ type APIEndpointConfig struct {
 	BaseURL       string        `mapstructure:"base_url"`
 	Location      string        `mapstructure:"location,omitempty"`
 	Line          string        `mapstructure:"line,omitempty"`
+	Stop          string        `mapstructure:"stop,omitempty"`
+	StopName      string        `mapstructure:"stop_name,omitempty"`
 	Region        string        `mapstructure:"region,omitempty"`
 	Timeout       time.Duration `mapstructure:"timeout"`
 	RetryAttempts int           `mapstructure:"retry_attempts"`

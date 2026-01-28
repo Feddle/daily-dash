@@ -37,8 +37,12 @@ func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
 
 	// Föli SIRI Stop Monitoring endpoint
 	// Documentation: https://data.foli.fi/
-	// We default to stop 300 (Puutori) if no stop is configured, as siri/sm requires a stop code
-	url := fmt.Sprintf("%s/siri/sm/300", c.config.BaseURL)
+	// Use configured stop, default to 300 if not specified
+	stopCode := c.config.Stop
+	if stopCode == "" {
+		stopCode = "300"
+	}
+	url := fmt.Sprintf("%s/siri/sm/%s", c.config.BaseURL, stopCode)
 
 	var responseData []byte
 	var fetchErr error
@@ -78,7 +82,11 @@ func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
 	}
 
 	// Parse the response
-	departures, err := ParseSIRIResponse(responseData, c.config.Line)
+	stopName := c.config.StopName
+	if stopName == "" {
+		stopName = fmt.Sprintf("Stop %s", stopCode)
+	}
+	departures, err := ParseSIRIResponse(responseData, c.config.Line, stopName)
 	if err != nil {
 		c.logger.Error("failed to parse transit response",
 			zap.Error(err),

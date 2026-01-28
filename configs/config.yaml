@@ -20,6 +20,8 @@ api:
   foli:
     base_url: "https://data.foli.fi"
     line: "1"
+    stop: "1"
+    stop_name: "Kauppatori (T1)"
     timeout: 10s
     retry_attempts: 3
 
