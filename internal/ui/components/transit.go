@@ -104,7 +104,11 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 		content = lipgloss.JoinVertical(lipgloss.Left, lines...)
 	}
 
-	title := transitTitleStyle.Render(fmt.Sprintf("Föli Line %s", getLineNumber(transit)))
+	stopInfo := "Unknown Stop"
+	if transit != nil && transit.Stop != "" {
+		stopInfo = transit.Stop
+	}
+	title := transitTitleStyle.Render(fmt.Sprintf("Föli Line %s at %s", getLineNumber(transit), stopInfo))
 
 	panel := lipgloss.JoinVertical(lipgloss.Left, title, "", content)
 

@@ -74,7 +74,7 @@ func determineConditions(temperature, humidity, windSpeed float64) string {
 }
 
 // NormalizeTransit converts Föli departure data to domain Transit model
-func NormalizeTransit(line string, departureInfos []struct {
+func NormalizeTransit(line, stop string, departureInfos []struct {
 	Stop          string
 	ScheduledTime string
 	ExpectedTime  string
@@ -128,6 +128,7 @@ func NormalizeTransit(line string, departureInfos []struct {
 
 	return &Transit{
 		Line:       line,
+		Stop:       stop,
 		Departures: departures,
 		Timestamp:  time.Now(),
 	}

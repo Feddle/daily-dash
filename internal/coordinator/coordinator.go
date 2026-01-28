@@ -78,8 +78,8 @@ func (c *Coordinator) FetchWeather(ctx context.Context) (*domain.Weather, error)
 	return weather, nil
 }
 
-// FetchTransit fetches transit data with caching
-func (c *Coordinator) FetchTransit(ctx context.Context) (*domain.Transit, error) {
+// FetchTransit fetches transit data with caching for a specific stop (empty for default)
+func (c *Coordinator) FetchTransit(ctx context.Context, stopCode string) (*domain.Transit, error) {
 	c.logger.Debug("fetching transit with caching")
 
 	// Check cache first
@@ -94,7 +94,7 @@ func (c *Coordinator) FetchTransit(ctx context.Context) (*domain.Transit, error)
 
 	// Cache miss or disabled - fetch from API
 	c.logger.Debug("cache miss, fetching from Föli API")
-	departures, err := c.foliClient.FetchTransit(ctx)
+	departures, err := c.foliClient.FetchTransit(ctx, stopCode)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +121,17 @@ func (c *Coordinator) FetchTransit(ctx context.Context) (*domain.Transit, error)
 		})
 	}
 
+	// Determine stop name from departures or config
+	stopName := c.config.API.Foli.StopName
+	if len(departures) > 0 {
+		stopName = departures[0].Stop
+	}
+	if stopName == "" {
+		stopName = stopCode
+	}
+
 	// Normalize to domain model
-	transit := domain.NormalizeTransit(c.config.API.Foli.Line, departureData)
+	transit := domain.NormalizeTransit(c.config.API.Foli.Line, stopName, departureData)
 
 	// Store in cache
 	if c.config.Cache.Enabled {
@@ -133,6 +142,11 @@ func (c *Coordinator) FetchTransit(ctx context.Context) (*domain.Transit, error)
 	}
 
 	return transit, nil
+}
+
+// FetchStops fetches all stops from Föli API
+func (c *Coordinator) FetchStops(ctx context.Context) ([]foli.GTFSStop, error) {
+	return c.foliClient.FetchStops(ctx)
 }
 
 // FetchRoadConditions fetches road conditions with caching
@@ -234,7 +248,8 @@ func (c *Coordinator) FetchAll(ctx context.Context) (*domain.DashboardData, erro
 	// Fetch transit concurrently
 	g.Go(func() error {
 		fetchStart := time.Now()
-		transit, err := c.FetchTransit(gCtx)
+		// Use default configured stop
+		transit, err := c.FetchTransit(gCtx, "")
 		fetchDuration := time.Since(fetchStart)
 
 		mu.Lock()

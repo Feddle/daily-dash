@@ -28,8 +28,8 @@ func NewClient(cfg config.APIEndpointConfig, logger *zap.Logger) *Client {
 	}
 }
 
-// FetchTransit fetches transit data for the configured line
-func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
+// FetchTransit fetches transit data for the configured line and optional stop
+func (c *Client) FetchTransit(ctx context.Context, stopCode string) ([]DepartureInfo, error) {
 	startTime := time.Now()
 	c.logger.Info("fetching transit data",
 		zap.String("line", c.config.Line),
@@ -37,8 +37,10 @@ func (c *Client) FetchTransit(ctx context.Context) ([]DepartureInfo, error) {
 
 	// Föli SIRI Stop Monitoring endpoint
 	// Documentation: https://data.foli.fi/
-	// Use configured stop, default to 300 if not specified
-	stopCode := c.config.Stop
+	// Use provided stop, configured stop, or default
+	if stopCode == "" {
+		stopCode = c.config.Stop
+	}
 	if stopCode == "" {
 		stopCode = "300"
 	}

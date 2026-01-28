@@ -3,6 +3,8 @@ package ui
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/feddle/daily-dash/internal/api/foli"
 	"github.com/feddle/daily-dash/internal/config"
 	"github.com/feddle/daily-dash/internal/coordinator"
 	"github.com/feddle/daily-dash/internal/domain"
@@ -37,6 +39,15 @@ type Model struct {
 	lastRefresh     time.Time
 	showCooldownMsg bool
 	quitting        bool
+
+	// Föli Stop Selection
+	selectingStart bool
+	selectingEnd   bool
+	loadingStops   bool
+	stops          []foli.GTFSStop
+	stopList       list.Model
+	foliStartStop  string
+	foliEndStop    string
 }
 
 // NewModel creates a new UI model
@@ -60,5 +71,12 @@ func NewModel(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Co
 		lastRefresh:     time.Time{},
 		showCooldownMsg: false,
 		quitting:        false,
+		selectingStart:  false,
+		selectingEnd:    false,
+		loadingStops:    false,
+		stops:           nil,
+		stopList:        list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		foliStartStop:   "", // Will use default if empty
+		foliEndStop:     "",
 	}
 }

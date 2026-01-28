@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"go.uber.org/zap"
 )
 
 // fetchWeatherCmd fetches weather data asynchronously
@@ -32,8 +33,8 @@ func (m Model) fetchTransitCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		m.logger.Debug("starting transit fetch")
-		transit, err := m.coordinator.FetchTransit(ctx)
+		m.logger.Debug("starting transit fetch", zap.String("stop", m.foliStartStop))
+		transit, err := m.coordinator.FetchTransit(ctx, m.foliStartStop)
 
 		if err != nil {
 			m.logger.Error("transit fetch failed")
@@ -61,6 +62,25 @@ func (m Model) fetchRoadCmd() tea.Cmd {
 
 		m.logger.Debug("road conditions fetch successful")
 		return roadFetchSuccessMsg{roadConditions: roadConditions}
+	}
+}
+
+// fetchStopsCmd fetches all stops asynchronously
+func (m Model) fetchStopsCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		m.logger.Debug("starting stops fetch")
+		stops, err := m.coordinator.FetchStops(ctx)
+
+		if err != nil {
+			m.logger.Error("stops fetch failed", zap.Error(err))
+			return stopsFetchErrorMsg{err: err}
+		}
+
+		m.logger.Debug("stops fetch successful", zap.Int("count", len(stops)))
+		return stopsFetchSuccessMsg{stops: stops}
 	}
 }
 

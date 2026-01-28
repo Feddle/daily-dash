@@ -23,6 +23,10 @@ func (m Model) View() string {
 		return "Goodbye!\n"
 	}
 
+	if m.selectingStart || m.selectingEnd {
+		return m.stopList.View()
+	}
+
 	// Render header
 	header := components.RenderHeader(m.lastUpdate)
 
@@ -54,7 +58,7 @@ func (m Model) View() string {
 
 	// Build footer
 	timeStr := time.Now().Format("15:04")
-	footer := footerStyle.Render(timeStr + " | Press 'r' to refresh | Press 'q' to quit")
+	footer := footerStyle.Render(timeStr + " | Press 'r' to refresh | Press 'f' to select stop | Press 'q' to quit")
 
 	var notification string
 	if m.showCooldownMsg {

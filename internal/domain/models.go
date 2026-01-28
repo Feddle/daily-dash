@@ -15,6 +15,7 @@ type Weather struct {
 // Transit represents public transit data
 type Transit struct {
 	Line       string
+	Stop       string
 	Departures []Departure
 	Timestamp  time.Time
 }

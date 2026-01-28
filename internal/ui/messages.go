@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	"github.com/feddle/daily-dash/internal/api/foli"
 	"github.com/feddle/daily-dash/internal/domain"
 )
 
@@ -38,6 +39,17 @@ type roadFetchSuccessMsg struct {
 }
 
 type roadFetchErrorMsg struct {
+	err error
+}
+
+// Stops messages
+type stopsFetchStartMsg struct{}
+
+type stopsFetchSuccessMsg struct {
+	stops []foli.GTFSStop
+}
+
+type stopsFetchErrorMsg struct {
 	err error
 }
 

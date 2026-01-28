@@ -27,3 +27,26 @@ type DepartureInfo struct {
 	Status        string
 	RecordedAt    string
 }
+
+// GTFSStop represents a bus stop from the Föli GTFS API
+type GTFSStop struct {
+	ID   string `json:"stop_id"`
+	Name string `json:"stop_name"`
+	Code string `json:"stop_code"`
+	Desc string `json:"stop_desc"`
+}
+
+// FilterValue implements the list.Item interface
+func (s GTFSStop) FilterValue() string {
+	return s.Name
+}
+
+// Title implements the list.Item interface
+func (s GTFSStop) Title() string {
+	return s.Name
+}
+
+// Description implements the list.Item interface
+func (s GTFSStop) Description() string {
+	return s.Desc
+}
