@@ -59,4 +59,3 @@ type clearCooldownMsg struct{}
 type tickMsg struct {
 	time time.Time
 }
-

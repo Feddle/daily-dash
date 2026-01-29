@@ -8,9 +8,9 @@ import (
 func TestNormalizeWeather_TimezoneConversion(t *testing.T) {
 	// 12:00 UTC
 	utcTime := "2024-01-28T12:00:00Z"
-	
+
 	weather := NormalizeWeather(0, 0, 0, "Test", utcTime)
-	
+
 	// Check if the location is Local
 	if weather.Timestamp.Location() != time.Local {
 		t.Errorf("Expected timestamp location to be Local, got %v", weather.Timestamp.Location())

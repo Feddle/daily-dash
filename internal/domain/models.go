@@ -23,10 +23,10 @@ type Transit struct {
 
 // Departure represents a single departure
 type Departure struct {
-	Stop          string
-	ScheduledTime time.Time
-	ExpectedTime  time.Time
-	Status        DepartureStatus
+	Stop            string
+	ScheduledTime   time.Time
+	ExpectedTime    time.Time
+	Status          DepartureStatus
 	MinutesUntil    int
 	DestinationStop string
 	ArrivalTime     time.Time

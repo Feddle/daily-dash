@@ -176,12 +176,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadingStops = false
 		m.stops = msg.stops
 		m.selectingStart = true
-		
+
 		// Initialize list
 		items := stopsToListItems(m.stops)
 		m.stopList = list.New(items, list.NewDefaultDelegate(), m.width, m.height)
 		m.stopList.Title = "Select Start Stop"
-		
+
 		return m, nil
 
 	case stopsFetchErrorMsg:

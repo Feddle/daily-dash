@@ -24,10 +24,16 @@ build:
 run: build
 	@$(BINARY_PATH)
 
+HAS_GCC := $(shell which gcc 2>/dev/null)
+
 ## test: Run tests
 test:
 	@echo "Running tests..."
-	@$(GO) test -v -race -coverprofile=coverage.out ./...
+ifeq ($(HAS_GCC),)
+	@$(GO) test -v -coverprofile=coverage.out ./...
+else
+	@CGO_ENABLED=1 $(GO) test -v -race -coverprofile=coverage.out ./...
+endif
 
 ## test-coverage: Run tests with coverage report
 test-coverage: test

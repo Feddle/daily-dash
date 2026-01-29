@@ -49,7 +49,7 @@ func TestClient_FetchTripStops(t *testing.T) {
 	tripID := "00020969__1021041100"
 	dataset := "20260128-124320"
 	url := "https://data.foli.fi/gtfs/v0/" + dataset + "/stop_times/trip/" + tripID
-	
+
 	tripResp, _ := httpmock.NewJsonResponder(200, []map[string]interface{}{
 		{"arrival_time": "15:05:00", "departure_time": "15:05:00", "stop_id": "1943", "stop_sequence": 0},
 		{"arrival_time": "15:06:10", "departure_time": "15:06:10", "stop_id": "472", "stop_sequence": 1},

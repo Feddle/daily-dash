@@ -121,7 +121,7 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 				}
 
 				stops, err := c.FetchTripStops(ctx, dataset.Latest, departures[i].TripID)
-				
+
 				// Retry if error OR empty result
 				if err != nil || len(stops) == 0 {
 					// Try stripping prefix from TripRef if it contains "__"
@@ -137,21 +137,21 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 							}
 						}
 					}
-					
+
 					if err != nil {
 						c.logger.Debug("failed to fetch trip stops", zap.String("trip", departures[i].TripID), zap.Error(err))
 						departures[i].DebugInfo = fmt.Sprintf("Err: %v", err)
 						continue
 					}
 				}
-				
+
 				departures[i].DebugInfo = fmt.Sprintf("Stops: %d", len(stops))
 
 				for _, s := range stops {
 					if idsMatch(s.StopID, destStopID) {
 						// Found destination stop
-						departures[i].DestinationStop = destStopID 
-                        // c.logger.Debug("Destination stop found", zap.String("stop", destStopID), zap.String("arrival", s.ArrivalTime))
+						departures[i].DestinationStop = destStopID
+						// c.logger.Debug("Destination stop found", zap.String("stop", destStopID), zap.String("arrival", s.ArrivalTime))
 
 						// c.logger.Info("Destination stop found", zap.String("stop", destStopID), zap.String("arrival", s.ArrivalTime))
 
@@ -159,18 +159,18 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 						// GTFS time is HH:MM:SS, potentially > 24:00:00
 						// We need to combine it with the valid date of the trip.
 						// Simplification: Check real-time delay at start stop and apply to destination scheduled time.
-						
+
 						// 1. Calculate delay at start stop
 						var scheduledStart, expectedStart time.Time
 						var err1, err2 error
-						
+
 						if departures[i].ScheduledTime != "" {
 							scheduledStart, err1 = time.Parse(time.RFC3339, departures[i].ScheduledTime)
 						} else {
 							// Fallback if missing
 							scheduledStart = time.Now()
 						}
-						
+
 						if departures[i].ExpectedTime != "" {
 							expectedStart, err2 = time.Parse(time.RFC3339, departures[i].ExpectedTime)
 						} else {
@@ -190,26 +190,26 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 						if len(s.ArrivalTime) >= 8 {
 							// We need the date part. Use scheduledStart date.
 							// Note: GTFS times can be > 24h, meaning next day relative to trip start date.
-							
+
 							// Correct approach:
 							// Get YYYY-MM-DD from scheduledStart
 							// Ensure we have a valid date
 							if scheduledStart.IsZero() {
 								scheduledStart = time.Now()
 							}
-							
+
 							baseDate := time.Date(scheduledStart.Year(), scheduledStart.Month(), scheduledStart.Day(), 0, 0, 0, 0, scheduledStart.Location())
-							
+
 							// Parse duration from string "HH:MM:SS"
 							// Since time.ParseDuration doesn't support "HH:MM:SS" directly and GTFS can be "25:00:00", we need custom parsing.
 							var h, m, sec int
 							fmt.Sscanf(s.ArrivalTime, "%d:%d:%d", &h, &m, &sec)
-							
+
 							destScheduledTime := baseDate.Add(time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second)
-							
+
 							// Apply delay
 							destExpectedTime := destScheduledTime.Add(delay)
-							
+
 							departures[i].DestinationArrival = destExpectedTime
 						}
 						break
@@ -262,7 +262,7 @@ func (c *Client) FetchTripStops(ctx context.Context, dataset, tripID string) ([]
 	// The trip ID in valid SIRI ref often has extra parts, we need to extract the core ID if needed.
 	// However, initial testing shows the ID from SIRI `__tripref` might work directly or need slight adjustment.
 	// Based on curl test: `00020969__1021041100` worked.
-	
+
 	url := fmt.Sprintf("%s/gtfs/v0/%s/stop_times/trip/%s", c.config.BaseURL, dataset, tripID)
 	var stopTimes []GTFSStopTime
 
@@ -288,12 +288,12 @@ func (c *Client) FetchTripStops(ctx context.Context, dataset, tripID string) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sort by stop sequence to be safe
 	sort.Slice(stopTimes, func(i, j int) bool {
 		return stopTimes[i].StopSequence < stopTimes[j].StopSequence
 	})
-	
+
 	return stopTimes, nil
 }
 
@@ -302,10 +302,10 @@ func idsMatch(id1, id2 string) bool {
 	if id1 == id2 {
 		return true
 	}
-	
+
 	// Remove "T" prefix (common in Föli GTFS vs SIRI) and leading zeros
 	clean1 := strings.TrimLeft(strings.TrimPrefix(id1, "T"), "0")
 	clean2 := strings.TrimLeft(strings.TrimPrefix(id2, "T"), "0")
-	
+
 	return clean1 != "" && clean1 == clean2
 }

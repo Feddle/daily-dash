@@ -23,7 +23,6 @@ var (
 				Bold(true).
 				Foreground(lipgloss.Color("246"))
 
-
 	transitOnTimeStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("82")) // Green
 
@@ -59,11 +58,11 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 		if hasDestination {
 			width = 80
 		}
-		
+
 		// Build departure table
 		var header string
 		var separator string
-		
+
 		if hasDestination {
 			header = transitHeaderStyle.Render(fmt.Sprintf("%-15s %5s %6s  %-15s %5s", "Start", "Time", "ETA", "End", "Arr"))
 			separator = transitHeaderStyle.Render(strings.Repeat("─", 75))
@@ -71,7 +70,7 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 			header = transitHeaderStyle.Render(fmt.Sprintf("%-20s %8s %6s", "Stop", "Time", "ETA"))
 			separator = transitHeaderStyle.Render(strings.Repeat("─", 45))
 		}
-		
+
 		lines := []string{header, separator}
 
 		for _, dep := range transit.Departures {
@@ -113,7 +112,7 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 			default:
 				etaStr = fmt.Sprintf("%d min", dep.MinutesUntil)
 			}
-			
+
 			var row string
 			if hasDestination {
 				destStop := "Unknown"
@@ -127,12 +126,12 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 				if len(destStop) > maxLen {
 					destStop = destStop[:maxLen-3] + "..."
 				}
-				
+
 				destTimeStr := "-"
 				if !dep.ArrivalTime.IsZero() {
 					destTimeStr = dep.ArrivalTime.Format("15:04")
 				}
-				
+
 				row = fmt.Sprintf("%-15s %5s %6s  %-15s %5s", stop, timeStr, etaStr, destStop, destTimeStr)
 			} else {
 				row = fmt.Sprintf("%-20s %8s %6s", stop, timeStr, etaStr)
@@ -151,13 +150,13 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 		lines = append(lines, transitHeaderStyle.Render(legend))
 
 		content = lipgloss.JoinVertical(lipgloss.Left, lines...)
-		
+
 		// Set width on border style for this render
 		// Set width on border style for this render
-		
+
 		title := transitTitleStyle.Render(fmt.Sprintf("Föli Line %s", getLineNumber(transit)))
 		var panel string
-		
+
 		if transit.Warning != "" {
 			warningMsg := transit.Warning
 			if len(transit.Departures) > 0 && transit.Departures[0].DebugInfo != "" {
@@ -168,10 +167,10 @@ func RenderTransit(transit *domain.Transit, loading bool, err error) string {
 		} else {
 			panel = lipgloss.JoinVertical(lipgloss.Left, title, "", content)
 		}
-		
+
 		return transitBorderStyle.Width(width).Render(panel)
 	}
-	
+
 	// Default return for error/loading case
 	return transitBorderStyle.Width(50).Render(content)
 }

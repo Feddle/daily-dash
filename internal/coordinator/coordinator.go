@@ -127,7 +127,7 @@ func (c *Coordinator) FetchTransit(ctx context.Context, stopCode, stopName, dest
 		if stopName != "" {
 			currentStop = stopName
 		}
-		
+
 		departureData = append(departureData, struct {
 			Stop            string
 			ScheduledTime   string
@@ -169,7 +169,7 @@ func (c *Coordinator) FetchTransit(ctx context.Context, stopCode, stopName, dest
 			// If the client didn't find a connection, ArrivalTime will be zero
 			transit.Departures[i].DestinationStop = destStopName
 		}
-		
+
 		// Check if any direct connection was found
 		foundConnection := false
 		for _, dep := range transit.Departures {
@@ -178,7 +178,7 @@ func (c *Coordinator) FetchTransit(ctx context.Context, stopCode, stopName, dest
 				break
 			}
 		}
-		
+
 		if !foundConnection && len(transit.Departures) > 0 {
 			transit.Warning = fmt.Sprintf("No connection to %s (ID: %s)", destStopName, destStopCode)
 		}

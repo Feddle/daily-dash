@@ -48,7 +48,7 @@ func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]Departur
 		status = "on time"
 
 		departure := DepartureInfo{
-			Stop:          "Likely Stop", // We don't have stop name in this specific JSON unless we fetch stops?
+			Stop: "Likely Stop", // We don't have stop name in this specific JSON unless we fetch stops?
 			// The JSON had "stop_name" ?? No, "result" has "lineref".
 			// Ah, the JSON I saw earlier had "lineref".
 			// Does it have "stopname"?
@@ -64,7 +64,7 @@ func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]Departur
 			// Step 158 output didn't show it explicitly in the snippet.
 			// It had "originref", "destinationref".
 			// I will set Stop to "Stop 1" for now.
-			
+
 			Line:          visit.LineRef,
 			Destination:   visit.DestinationDisplay,
 			ScheduledTime: scheduledTime,
@@ -73,7 +73,7 @@ func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]Departur
 			RecordedAt:    recordedAt,
 			TripID:        visit.TripRef,
 		}
-		
+
 		// Wait, I need actual Stop Name?
 		// Normalizer uses it to display.
 		// I'll just use the provided stopName.

@@ -53,13 +53,13 @@ func (c *Client) FetchStops(ctx context.Context) ([]GTFSStop, error) {
 				targetURL = "http:" + targetURL
 			}
 			c.logger.Debug("following metadata link", zap.String("url", targetURL))
-			
+
 			resp2, err2 := c.httpClient.R().
 				SetContext(ctx).
 				SetHeader("Accept", "application/json").
 				SetHeader("Accept-Encoding", "gzip").
 				Get(targetURL)
-			
+
 			if err2 == nil && resp2.StatusCode() == 200 {
 				responseData = resp2.Body()
 				return nil

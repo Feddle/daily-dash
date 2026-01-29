@@ -2,9 +2,9 @@ package digitraffic
 
 // WeatherStationResponse represents the Digitraffic weather station response (GeoJSON)
 type WeatherStationResponse struct {
-	Type           string    `json:"type"`
-	DataUpdatedTime string   `json:"dataUpdatedTime"`
-	Features       []Feature `json:"features"`
+	Type            string    `json:"type"`
+	DataUpdatedTime string    `json:"dataUpdatedTime"`
+	Features        []Feature `json:"features"`
 }
 
 // Feature represents a single weather station feature

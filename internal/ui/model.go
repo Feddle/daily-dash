@@ -13,8 +13,8 @@ import (
 
 // Model represents the Bubble Tea application state
 type Model struct {
-	coordinator *coordinator.Coordinator
-	logger      *zap.Logger
+	coordinator     *coordinator.Coordinator
+	logger          *zap.Logger
 	width           int
 	height          int
 	refreshCooldown time.Duration
@@ -35,52 +35,52 @@ type Model struct {
 	roadErr    error
 
 	// General state
-	lastUpdate  time.Time
+	lastUpdate      time.Time
 	lastRefresh     time.Time
 	showCooldownMsg bool
 	quitting        bool
 
 	// Föli Stop Selection
-	selectingStart bool
-	selectingEnd   bool
-	loadingStops   bool
-	stops          []foli.GTFSStop
-	stopList       list.Model
-	foliStartStop      string
-	foliStartStopName  string
-	foliEndStop        string
-	foliEndStopName    string
+	selectingStart    bool
+	selectingEnd      bool
+	loadingStops      bool
+	stops             []foli.GTFSStop
+	stopList          list.Model
+	foliStartStop     string
+	foliStartStopName string
+	foliEndStop       string
+	foliEndStopName   string
 }
 
 // NewModel creates a new UI model
 func NewModel(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Config) Model {
 	return Model{
-		coordinator:     coord,
-		logger:          logger,
-		width:           80,
-		height:          24,
-		refreshCooldown: cfg.App.RefreshCooldown,
-		weatherData:     nil,
-		transitData:     nil,
-		roadData:        nil,
-		weatherLoading:  false,
-		transitLoading:  false,
-		roadLoading:     false,
-		weatherErr:      nil,
-		transitErr:      nil,
-		roadErr:         nil,
-		lastUpdate:      time.Time{},
-		lastRefresh:     time.Time{},
-		showCooldownMsg: false,
-		quitting:        false,
-		selectingStart:  false,
-		selectingEnd:    false,
-		loadingStops:    false,
-		stops:              nil,
-		stopList:           list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		foliStartStop:      "", // Will use default if empty
-		foliStartStopName:  "",
-		foliEndStop:        "",
-		foliEndStopName:    "",
+		coordinator:       coord,
+		logger:            logger,
+		width:             80,
+		height:            24,
+		refreshCooldown:   cfg.App.RefreshCooldown,
+		weatherData:       nil,
+		transitData:       nil,
+		roadData:          nil,
+		weatherLoading:    false,
+		transitLoading:    false,
+		roadLoading:       false,
+		weatherErr:        nil,
+		transitErr:        nil,
+		roadErr:           nil,
+		lastUpdate:        time.Time{},
+		lastRefresh:       time.Time{},
+		showCooldownMsg:   false,
+		quitting:          false,
+		selectingStart:    false,
+		selectingEnd:      false,
+		loadingStops:      false,
+		stops:             nil,
+		stopList:          list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		foliStartStop:     "", // Will use default if empty
+		foliStartStopName: "",
+		foliEndStop:       "",
+		foliEndStopName:   "",
 	}
 }

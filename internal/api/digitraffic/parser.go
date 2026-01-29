@@ -28,7 +28,7 @@ func ParseWeatherStationResponse(jsonData []byte, regionFilter string) ([]RoadCo
 
 		// Since we don't have sensor values in this metadata endpoint, we use the station state
 		state := feature.Properties.State
-		
+
 		// Map state to condition
 		// States: OK, FAULT, DOUBT, CANCELLED, null
 		condition := "Normal"

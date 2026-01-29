@@ -41,7 +41,7 @@ func ParseWeatherResponse(xmlData []byte) (map[string]float64, string, error) {
 		// Href example: http://xml.fmi.fi/schema/wfs/2.0/Query/StoredQuery/fmi::observations::weather::timevaluepair#t2m
 		href := member.PointTimeSeriesObservation.ObservedProperty.Href
 		param := parseParamFromHref(href)
-		
+
 		if param != "" {
 			observations[param] = value
 		}
@@ -76,7 +76,7 @@ func ExtractWeatherData(observations map[string]float64, timestamp string) *Obse
 	// t2m: Temperature (deg C)
 	// rh: Relative Humidity (%)
 	// ws_10min: Wind Speed (m/s)
-	
+
 	if temp, ok := observations["t2m"]; ok {
 		data.Temperature = temp
 	}
@@ -117,5 +117,3 @@ func DetermineConditions(temperature, humidity float64) string {
 
 	return "Partly Cloudy"
 }
-
-
