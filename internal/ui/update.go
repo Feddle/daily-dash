@@ -46,6 +46,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
+
+			default:
+				// Auto-enable filtering if the user types a character
+				if msg.Type == tea.KeyRunes && m.stopList.FilterState() == list.Unfiltered {
+					// We simulate a '/' key press to start filtering
+					// Ignore the command for now as we just want the state change
+					m.stopList, _ = m.stopList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+				}
 			}
 		}
 
@@ -87,6 +95,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(m.stops) > 0 {
 					m.selectingStart = true
 					m.stopList.Title = "Select Start Stop"
+					m.stopList.ResetFilter()
 					m.stopList.SetItems(stopsToListItems(m.stops))
 					m.stopList.SetSize(m.width, m.height)
 					return m, nil
