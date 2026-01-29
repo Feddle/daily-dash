@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/feddle/daily-dash/internal/api/foli"
@@ -17,7 +18,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.WindowSizeMsg:
 			m.width = msg.Width
 			m.height = msg.Height
-			m.stopList.SetSize(msg.Width, msg.Height)
+			m.stopList.SetSize(msg.Width, msg.Height-2)
 
 		case tea.KeyMsg:
 			switch msg.String() {
@@ -48,11 +49,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			default:
-				// Auto-enable filtering if the user types a character
-				if msg.Type == tea.KeyRunes && m.stopList.FilterState() == list.Unfiltered {
-					// We simulate a '/' key press to start filtering
-					// Ignore the command for now as we just want the state change
+				// Auto-enable filtering if the user types a character (and isn't already filtering)
+				if msg.Type == tea.KeyRunes && m.stopList.FilterState() != list.Filtering {
+					// Toggle filtering mode
 					m.stopList, _ = m.stopList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+					if msg.String() == "/" {
+						return m, nil
+					}
 				}
 			}
 		}
@@ -97,7 +100,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.stopList.Title = "Select Start Stop"
 					m.stopList.ResetFilter()
 					m.stopList.SetItems(stopsToListItems(m.stops))
-					m.stopList.SetSize(m.width, m.height)
+					m.stopList.SetSize(m.width, m.height-2)
 					return m, nil
 				}
 				// Fetch stops
@@ -188,8 +191,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Initialize list
 		items := stopsToListItems(m.stops)
-		m.stopList = list.New(items, list.NewDefaultDelegate(), m.width, m.height)
+		m.stopList = list.New(items, list.NewDefaultDelegate(), m.width, m.height-2)
 		m.stopList.Title = "Select Start Stop"
+		m.stopList.SetShowHelp(false)
+		m.stopList.SetShowStatusBar(false)
+		m.stopList.SetShowPagination(false)
+
+		// Disable keys that we don't want to show but keep Filter enabled for simulation
+		m.stopList.KeyMap.ShowFullHelp = key.NewBinding() // Disable '?'
+		m.stopList.KeyMap.Quit = key.NewBinding()         // Disable 'q' in list
 
 		return m, nil
 

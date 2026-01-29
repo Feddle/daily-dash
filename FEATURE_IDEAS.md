@@ -11,9 +11,6 @@ This document outlines planned features, improvements, and maintenance tasks for
 
 ### Search & Filtering Improvements
 - **Cleaner List View**: Remove duplicate entries and hide internal IDs from the main list display to reduce clutter.
-- **Instant Search**: Start filtering displayed items immediately upon typing, without needing a separate activation step.
-- **Transient Filter State**: Do not persist filter text between sessions; clearing the filter when re-entering selection mode.
-- **Exit Navigation**: Add a clear and easy way to "leave" or cancel a selection menu without making a choice.
 
 ## 📚 Documentation
 - **Component Guides**: Create detailed documentation for each dashboard widget (Transit, Weather, Road), explaining how they work, their API sources, and configuration options.

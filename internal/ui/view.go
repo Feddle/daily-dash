@@ -15,6 +15,9 @@ var (
 	notificationStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("11")). // Yellow
 				Italic(true)
+
+	selectionFooterStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("241"))
 )
 
 // View renders the current state of the UI
@@ -23,55 +26,77 @@ func (m Model) View() string {
 		return "Goodbye!\n"
 	}
 
+	var mainContent string
+	var footerText string
+
+	timeStr := time.Now().Format("15:04")
+
 	if m.selectingStart || m.selectingEnd {
-		return m.stopList.View()
+		mainContent = m.stopList.View()
+		footerText = timeStr + " | ↑/↓ navigate | Type to filter | Press 'enter' to select | Press 'esc' to cancel"
+	} else {
+		// Render header
+		header := components.RenderHeader(m.lastUpdate)
+
+		// Render weather panel
+		weatherPanel := components.RenderWeather(m.weatherData, m.weatherLoading, m.weatherErr)
+
+		// Render transit panel
+		transitPanel := components.RenderTransit(m.transitData, m.transitLoading, m.transitErr)
+
+		// Render road panel
+		roadPanel := components.RenderRoad(m.roadData, m.roadLoading, m.roadErr)
+
+		// Build main content area - arrange weather and transit horizontally
+		topRow := lipgloss.JoinHorizontal(lipgloss.Top,
+			weatherPanel,
+			"  ", // Spacing between panels
+			transitPanel,
+		)
+
+		// Build bottom row with road conditions
+		bottomRow := roadPanel
+
+		// Combine rows vertically
+		content := lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			"",
+			topRow,
+			"",
+			bottomRow,
+		)
+		mainContent = content
+		footerText = timeStr + " | Press 'r' to refresh | Press 'f' to select stop | Press 'q' to quit"
 	}
 
-	// Render header
-	header := components.RenderHeader(m.lastUpdate)
+	var footer lipgloss.Style
+	if m.selectingStart || m.selectingEnd {
+		footer = selectionFooterStyle
+	} else {
+		footer = footerStyle
+	}
 
-	// Render weather panel
-	weatherPanel := components.RenderWeather(m.weatherData, m.weatherLoading, m.weatherErr)
-
-	// Render transit panel
-	transitPanel := components.RenderTransit(m.transitData, m.transitLoading, m.transitErr)
-
-	// Render road panel
-	roadPanel := components.RenderRoad(m.roadData, m.roadLoading, m.roadErr)
-
-	// Build main content area - arrange weather and transit horizontally
-	topRow := lipgloss.JoinHorizontal(lipgloss.Top,
-		weatherPanel,
-		"  ", // Spacing between panels
-		transitPanel,
-	)
-
-	// Build bottom row with road conditions
-	bottomRow := roadPanel
-
-	// Combine rows vertically
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		topRow,
-		"",
-		bottomRow,
-	)
-
-	// Build footer
-	timeStr := time.Now().Format("15:04")
-	footer := footerStyle.Render(timeStr + " | Press 'r' to refresh | Press 'f' to select stop | Press 'q' to quit")
+	renderedFooter := footer.Render(footerText)
 
 	var notification string
 	if m.showCooldownMsg {
 		notification = notificationStyle.Render("Please wait a few seconds before refreshing again...")
 	}
 
-	// Combine all elements
+	// For selection view, we want to be more compact to avoid scrolling
+	if m.selectingStart || m.selectingEnd {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			mainContent,
+			notification,
+			renderedFooter,
+		)
+	}
+
+	// Combine all elements for main dashboard
 	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		content,
+		mainContent,
 		"",
 		notification,
-		footer,
+		renderedFooter,
 	)
 }
