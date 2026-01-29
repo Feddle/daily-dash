@@ -180,9 +180,6 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 						delay := time.Duration(0)
 						if err1 == nil && err2 == nil {
 							delay = expectedStart.Sub(scheduledStart)
-						} else {
-							// If parsing failed, assume no delay? Or use provided delay field from SIRI if available?
-							// For now, assume 0.
 						}
 
 						// 2. Parse destination scheduled arrival time
@@ -203,7 +200,10 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 							// Parse duration from string "HH:MM:SS"
 							// Since time.ParseDuration doesn't support "HH:MM:SS" directly and GTFS can be "25:00:00", we need custom parsing.
 							var h, m, sec int
-							fmt.Sscanf(s.ArrivalTime, "%d:%d:%d", &h, &m, &sec)
+							if _, err := fmt.Sscanf(s.ArrivalTime, "%d:%d:%d", &h, &m, &sec); err != nil {
+								// If we can't parse arrival time, skip this stop
+								continue
+							}
 
 							destScheduledTime := baseDate.Add(time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second)
 

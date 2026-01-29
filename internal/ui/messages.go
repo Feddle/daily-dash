@@ -43,7 +43,6 @@ type roadFetchErrorMsg struct {
 }
 
 // Stops messages
-type stopsFetchStartMsg struct{}
 
 type stopsFetchSuccessMsg struct {
 	stops []foli.GTFSStop

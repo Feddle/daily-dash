@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/feddle/daily-dash/internal/domain"
 )
 
 // ParseSIRIResponse parses the SIRI JSON response into departure information
@@ -37,15 +36,7 @@ func ParseSIRIResponse(jsonData []byte, lineFilter, stopName string) ([]Departur
 		recordedAt := time.Unix(visit.RecordedAtTime, 0).Format(time.RFC3339)
 
 		// Determine status
-		// Using the helper function logic, but adapted
-		status := domain.OnTime.String() // string representation? No, struct expects string which coordinator maps to domain.
-		// Wait, coordinator maps 'string' Status to domain.DepartureStatus.
-		// Normalizer expects "cancelled" for Cancelled.
-		// "delayed" logic is in Normalizer based on time diff.
-
-		// However, we can also pass "delayed" if we know it.
-		// For now, let's just pass "on time" (or empty) and let Normalizer compare timestamps.
-		status = "on time"
+		status := "on time"
 
 		departure := DepartureInfo{
 			Stop: "Likely Stop", // We don't have stop name in this specific JSON unless we fetch stops?
