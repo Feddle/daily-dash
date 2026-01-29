@@ -103,30 +103,37 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 		return nil, domain.NewAPIError("Föli", "parse transit", 0, err)
 	}
 
-	// Limit to next 5 departures
+	// Limit variables
 	maxDepartures := 5
-	if len(departures) > maxDepartures {
-		departures = departures[:maxDepartures]
-	}
+	var validDepartures []DepartureInfo
 
-	// Calculate destination arrival times if destination stop is provided
+	// Calculate destination arrival times and filter if destination stop is provided
 	if destStopID != "" {
 		dataset, err := c.FetchDatasetInfo(ctx)
 		if err != nil {
 			c.logger.Error("failed to fetch dataset info", zap.Error(err))
 		} else if dataset != nil && dataset.Latest != "" {
+			checks := 0
+			limitChecks := 15
+
 			for i := range departures {
+				if len(validDepartures) >= maxDepartures {
+					break
+				}
+				if checks >= limitChecks {
+					break
+				}
+				
 				if departures[i].TripID == "" {
 					continue
 				}
 
+				checks++
 				stops, err := c.FetchTripStops(ctx, dataset.Latest, departures[i].TripID)
 
 				// Retry if error OR empty result
 				if err != nil || len(stops) == 0 {
 					// Try stripping prefix from TripRef if it contains "__"
-					// SIRI TripRef format: modification__tripId
-					// Sometimes GTFS uses only tripId
 					if len(departures[i].TripID) > 5 {
 						parts := strings.Split(departures[i].TripID, "__")
 						if len(parts) == 2 {
@@ -147,75 +154,82 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 
 				departures[i].DebugInfo = fmt.Sprintf("Stops: %d", len(stops))
 
+				// Find start stop sequence and time
+				var startSequence = -1
+				var startGTFSTimeStr string
+				for _, s := range stops {
+					if idsMatch(s.StopID, stopCode) {
+						startSequence = s.StopSequence
+						startGTFSTimeStr = s.ArrivalTime
+						break
+					}
+				}
+
+				departures[i].DebugInfo = fmt.Sprintf("Stops: %d, StartSeq: %d", len(stops), startSequence)
+
+				tripConnects := false
 				for _, s := range stops {
 					if idsMatch(s.StopID, destStopID) {
+						// Ensure destination is AFTER start stop
+						if startSequence != -1 && s.StopSequence <= startSequence {
+							continue
+						}
+
 						// Found destination stop
+						tripConnects = true
 						departures[i].DestinationStop = destStopID
-						// c.logger.Debug("Destination stop found", zap.String("stop", destStopID), zap.String("arrival", s.ArrivalTime))
-
-						// c.logger.Info("Destination stop found", zap.String("stop", destStopID), zap.String("arrival", s.ArrivalTime))
-
+						
 						// Parse scheduled times
-						// GTFS time is HH:MM:SS, potentially > 24:00:00
-						// We need to combine it with the valid date of the trip.
-						// Simplification: Check real-time delay at start stop and apply to destination scheduled time.
-
-						// 1. Calculate delay at start stop
 						var scheduledStart, expectedStart time.Time
-						var err1, err2 error
 
 						if departures[i].ScheduledTime != "" {
-							scheduledStart, err1 = time.Parse(time.RFC3339, departures[i].ScheduledTime)
+							scheduledStart, _ = time.Parse(time.RFC3339, departures[i].ScheduledTime)
 						} else {
-							// Fallback if missing
 							scheduledStart = time.Now()
 						}
 
 						if departures[i].ExpectedTime != "" {
-							expectedStart, err2 = time.Parse(time.RFC3339, departures[i].ExpectedTime)
+							expectedStart, _ = time.Parse(time.RFC3339, departures[i].ExpectedTime)
 						} else {
 							expectedStart = scheduledStart
 						}
+                        
+						// Calculate travel time based on GTFS difference
+						// This avoids issues with service day rollovers (e.g. 25:00:00)
+						if startGTFSTimeStr != "" && s.ArrivalTime != "" {
+							var h1, m1, s1 int
+							var h2, m2, s2 int
+							_, err1 := fmt.Sscanf(startGTFSTimeStr, "%d:%d:%d", &h1, &m1, &s1)
+							_, err2 := fmt.Sscanf(s.ArrivalTime, "%d:%d:%d", &h2, &m2, &s2)
 
-						delay := time.Duration(0)
-						if err1 == nil && err2 == nil {
-							delay = expectedStart.Sub(scheduledStart)
-						}
-
-						// 2. Parse destination scheduled arrival time
-						// Format is HH:MM:SS
-						if len(s.ArrivalTime) >= 8 {
-							// We need the date part. Use scheduledStart date.
-							// Note: GTFS times can be > 24h, meaning next day relative to trip start date.
-
-							// Correct approach:
-							// Get YYYY-MM-DD from scheduledStart
-							// Ensure we have a valid date
-							if scheduledStart.IsZero() {
-								scheduledStart = time.Now()
+							if err1 == nil && err2 == nil {
+								startDur := time.Duration(h1)*time.Hour + time.Duration(m1)*time.Minute + time.Duration(s1)*time.Second
+								destDur := time.Duration(h2)*time.Hour + time.Duration(m2)*time.Minute + time.Duration(s2)*time.Second
+								
+								// Calculate relative travel time
+								travelTime := destDur - startDur
+								
+								// Apply to expected start time
+								departures[i].DestinationArrival = expectedStart.Add(travelTime)
 							}
-
-							baseDate := time.Date(scheduledStart.Year(), scheduledStart.Month(), scheduledStart.Day(), 0, 0, 0, 0, scheduledStart.Location())
-
-							// Parse duration from string "HH:MM:SS"
-							// Since time.ParseDuration doesn't support "HH:MM:SS" directly and GTFS can be "25:00:00", we need custom parsing.
-							var h, m, sec int
-							if _, err := fmt.Sscanf(s.ArrivalTime, "%d:%d:%d", &h, &m, &sec); err != nil {
-								// If we can't parse arrival time, skip this stop
-								continue
-							}
-
-							destScheduledTime := baseDate.Add(time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second)
-
-							// Apply delay
-							destExpectedTime := destScheduledTime.Add(delay)
-
-							departures[i].DestinationArrival = destExpectedTime
 						}
 						break
 					}
 				}
+
+				if tripConnects {
+					validDepartures = append(validDepartures, departures[i])
+				}
 			}
+		}
+		// If dataset fail or other issues, validDepartures might be empty.
+		// Use what we found.
+		departures = validDepartures
+
+	} else {
+		// No destination selection, just take top N
+		if len(departures) > maxDepartures {
+			departures = departures[:maxDepartures]
 		}
 	}
 
@@ -229,7 +243,7 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 
 // FetchDatasetInfo fetches the current GTFS dataset information
 func (c *Client) FetchDatasetInfo(ctx context.Context) (*GTFSDatasetInfo, error) {
-	url := fmt.Sprintf("%s/gtfs", c.config.BaseURL)
+	url := fmt.Sprintf("%s/gtfs/", c.config.BaseURL)
 	var datasetInfo GTFSDatasetInfo
 
 	err := api.RetryWithBackoff(ctx, func() error {
