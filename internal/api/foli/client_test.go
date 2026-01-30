@@ -86,12 +86,12 @@ func TestClient_FetchTransit_TimetableRollover(t *testing.T) {
 		Status: "OK",
 		Result: []VehicleDeparture{
 			{
-				LineRef:            "1",
-				DestinationDisplay: "Market Square",
-				AimedDepartureTime: aimedTime,
+				LineRef:               "1",
+				DestinationDisplay:    "Market Square",
+				AimedDepartureTime:    aimedTime,
 				ExpectedDepartureTime: aimedTime, // On time
-				RecordedAtTime:     aimedTime - 60,
-				TripRef:            "trip1",
+				RecordedAtTime:        aimedTime - 60,
+				TripRef:               "trip1",
 			},
 		},
 	}
@@ -124,10 +124,10 @@ func TestClient_FetchTransit_TimetableRollover(t *testing.T) {
 		// 2026-01-02 00:45:00 UTC (assuming aimedTime was UTC)
 		// We use time.Unix(aimedTime, 0) which is local.
 		expectedTime := time.Unix(aimedTime, 0).Add(15 * time.Minute)
-		
+
 		actualTime := departures[0].DestinationArrival
 
-		assert.WithinDuration(t, expectedTime, actualTime, 1*time.Second, 
+		assert.WithinDuration(t, expectedTime, actualTime, 1*time.Second,
 			"Expected destination arrival to be 15m after start. Expected: %v, Got: %v", expectedTime, actualTime)
 	}
 }

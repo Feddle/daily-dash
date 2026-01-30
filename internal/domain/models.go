@@ -64,10 +64,11 @@ type RoadConditions struct {
 
 // RoadSegment represents a single road segment condition
 type RoadSegment struct {
-	Route       string
-	Condition   RoadCondition
-	Temperature float64
-	Description string
+	Route          string
+	Condition      RoadCondition
+	Temperature    float64 // Road surface temperature
+	AirTemperature float64 // Air temperature
+	Description    string
 }
 
 // RoadCondition represents the condition of a road
@@ -77,6 +78,7 @@ const (
 	Normal RoadCondition = iota
 	Slippery
 	Difficult
+	Unknown
 )
 
 func (rc RoadCondition) String() string {
@@ -87,6 +89,8 @@ func (rc RoadCondition) String() string {
 		return "Slippery"
 	case Difficult:
 		return "Difficult"
+	case Unknown:
+		return "Unknown"
 	default:
 		return "Unknown"
 	}

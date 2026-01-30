@@ -50,37 +50,49 @@ type Model struct {
 	foliStartStopName string
 	foliEndStop       string
 	foliEndStopName   string
+
+	// Road Region Selection
+	selectingRoad       bool
+	loadingRoadStations bool
+	roadStations        []string
+	roadStationList     list.Model
+	selectedRoadRegion  string
 }
 
 // NewModel creates a new UI model
 func NewModel(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Config) Model {
 	return Model{
-		coordinator:       coord,
-		logger:            logger,
-		width:             80,
-		height:            24,
-		refreshCooldown:   cfg.App.RefreshCooldown,
-		weatherData:       nil,
-		transitData:       nil,
-		roadData:          nil,
-		weatherLoading:    false,
-		transitLoading:    false,
-		roadLoading:       false,
-		weatherErr:        nil,
-		transitErr:        nil,
-		roadErr:           nil,
-		lastUpdate:        time.Time{},
-		lastRefresh:       time.Time{},
-		showCooldownMsg:   false,
-		quitting:          false,
-		selectingStart:    false,
-		selectingEnd:      false,
-		loadingStops:      false,
-		stops:             nil,
-		stopList:          list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		foliStartStop:     "", // Will use default if empty
-		foliStartStopName: "",
-		foliEndStop:       "",
-		foliEndStopName:   "",
+		coordinator:         coord,
+		logger:              logger,
+		width:               80,
+		height:              24,
+		refreshCooldown:     cfg.App.RefreshCooldown,
+		weatherData:         nil,
+		transitData:         nil,
+		roadData:            nil,
+		weatherLoading:      false,
+		transitLoading:      false,
+		roadLoading:         false,
+		weatherErr:          nil,
+		transitErr:          nil,
+		roadErr:             nil,
+		lastUpdate:          time.Time{},
+		lastRefresh:         time.Time{},
+		showCooldownMsg:     false,
+		quitting:            false,
+		selectingStart:      false,
+		selectingEnd:        false,
+		loadingStops:        false,
+		stops:               nil,
+		stopList:            list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		foliStartStop:       "", // Will use default if empty
+		foliStartStopName:   "",
+		foliEndStop:         "",
+		foliEndStopName:     "",
+		selectingRoad:       false,
+		loadingRoadStations: false,
+		roadStations:        nil,
+		roadStationList:     list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		selectedRoadRegion:  "", // Will use config default if empty
 	}
 }

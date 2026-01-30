@@ -28,26 +28,76 @@ func NewClient(cfg config.APIEndpointConfig, logger *zap.Logger) *Client {
 	}
 }
 
-// FetchRoadConditions fetches road conditions for the configured region
-func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, error) {
+// FetchRoadConditions fetches road conditions for a specific region.
+// If region is empty, it uses the configured default region.
+// If region is "*", it fetches all regions (no filter).
+// FetchRoadConditions fetches road conditions for a specific region using Forecast Sections API.
+// If region is empty, it uses the configured default region.
+// If region is "*", it fetches all regions (no filter).
+func (c *Client) FetchRoadConditions(ctx context.Context, region string) ([]RoadConditionData, error) {
 	startTime := time.Now()
-	c.logger.Info("fetching road conditions",
-		zap.String("region", c.config.Region),
+
+	// Handle region defaulting
+	filterRegion := region
+	switch region {
+	case "":
+		filterRegion = c.config.Region
+	case "*":
+		filterRegion = "" // No filter
+	}
+
+	c.logger.Info("fetching road conditions (forecast sections)",
+		zap.String("region", filterRegion),
 	)
 
-	// Digitraffic weather station API
-	// Documentation: https://www.digitraffic.fi/en/road-traffic/
-	// url := fmt.Sprintf("%s/weathercam-stations/data", c.config.BaseURL)
+	// Step 1: Fetch Metadata (Road names)
+	// Cache-busting or long-term caching could be done, but for now we fetch it.
+	// In a real production app, cache this for 24h.
+	metadata, err := c.fetchForecastSectionsMetadata(ctx)
+	if err != nil {
+		c.logger.Error("failed to fetch forecast metadata", zap.Error(err))
+		return nil, err
+	}
 
-	// Alternatively, use weather data API
-	// More reliable for road conditions
-	// Use weather stations metadata API (V1)
-	url := "https://tie.digitraffic.fi/api/weather/v1/stations"
+	// Step 2: Fetch Forecasts (Conditions)
+	forecasts, err := c.fetchForecastSectionsForecasts(ctx)
+	if err != nil {
+		c.logger.Error("failed to fetch forecast data", zap.Error(err))
+		return nil, err
+	}
 
+	// Step 3: Parse and Combine
+	conditions, err := ParseForecastResponse(forecasts, metadata, filterRegion)
+	if err != nil {
+		c.logger.Error("failed to parse road conditions response", zap.Error(err))
+		return nil, domain.NewAPIError("Digitraffic", "parse road conditions", 0, err)
+	}
+
+	c.logger.Info("successfully fetched road conditions",
+		zap.Int("segment_count", len(conditions)),
+		zap.Duration("elapsed", time.Since(startTime)),
+	)
+
+	return conditions, nil
+}
+
+func (c *Client) fetchForecastSectionsMetadata(ctx context.Context) ([]byte, error) {
+	// https://tie.digitraffic.fi/api/weather/v1/forecast-sections-simple
+	// Use BaseURL from config (default: https://tie.digitraffic.fi)
+	url := fmt.Sprintf("%s/api/weather/v1/forecast-sections-simple", c.config.BaseURL)
+	return c.fetchWithRetry(ctx, url)
+}
+
+func (c *Client) fetchForecastSectionsForecasts(ctx context.Context) ([]byte, error) {
+	// https://tie.digitraffic.fi/api/weather/v1/forecast-sections-simple/forecasts
+	url := fmt.Sprintf("%s/api/weather/v1/forecast-sections-simple/forecasts", c.config.BaseURL)
+	return c.fetchWithRetry(ctx, url)
+}
+
+func (c *Client) fetchWithRetry(ctx context.Context, url string) ([]byte, error) {
 	var responseData []byte
 	var fetchErr error
 
-	// Execute request with retry logic
 	err := api.RetryWithBackoff(ctx, func() error {
 		resp, err := c.httpClient.R().
 			SetContext(ctx).
@@ -61,8 +111,8 @@ func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, 
 		}
 
 		if resp.StatusCode() != 200 {
-			fetchErr = domain.NewAPIError("Digitraffic", "fetch road conditions", resp.StatusCode(),
-				fmt.Errorf("unexpected status code: %d", resp.StatusCode()))
+			fetchErr = domain.NewAPIError("Digitraffic", "fetch url", resp.StatusCode(),
+				fmt.Errorf("unexpected status code: %d from %s", resp.StatusCode(), url))
 			return fetchErr
 		}
 
@@ -71,35 +121,11 @@ func (c *Client) FetchRoadConditions(ctx context.Context) ([]RoadConditionData, 
 	}, c.logger, "Digitraffic")
 
 	if err != nil {
-		c.logger.Error("failed to fetch road conditions",
-			zap.Error(err),
-			zap.Duration("elapsed", time.Since(startTime)),
-		)
 		if fetchErr != nil {
 			return nil, fetchErr
 		}
-		return nil, domain.NewAPIError("Digitraffic", "fetch road conditions", 0, err)
+		return nil, domain.NewAPIError("Digitraffic", "fetch retry failed", 0, err)
 	}
 
-	// Parse the response
-	conditions, err := ParseWeatherStationResponse(responseData, c.config.Region)
-	if err != nil {
-		c.logger.Error("failed to parse road conditions response",
-			zap.Error(err),
-		)
-		return nil, domain.NewAPIError("Digitraffic", "parse road conditions", 0, err)
-	}
-
-	// Limit to top 3 road segments
-	maxSegments := 3
-	if len(conditions) > maxSegments {
-		conditions = conditions[:maxSegments]
-	}
-
-	c.logger.Info("successfully fetched road conditions",
-		zap.Int("segment_count", len(conditions)),
-		zap.Duration("elapsed", time.Since(startTime)),
-	)
-
-	return conditions, nil
+	return responseData, nil
 }

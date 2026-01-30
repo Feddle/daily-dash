@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
 )
 
 // ParseSIRIResponse parses the SIRI JSON response into departure information

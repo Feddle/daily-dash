@@ -34,6 +34,9 @@ func (m Model) View() string {
 	if m.selectingStart || m.selectingEnd {
 		mainContent = m.stopList.View()
 		footerText = timeStr + " | ↑/↓ navigate | Type to filter | Press 'enter' to select | Press 'esc' to cancel"
+	} else if m.selectingRoad {
+		mainContent = m.roadStationList.View()
+		footerText = timeStr + " | ↑/↓ navigate | Type to filter | Press 'enter' to select | Press 'esc' to cancel"
 	} else {
 		// Render header
 		header := components.RenderHeader(m.lastUpdate)
@@ -66,11 +69,11 @@ func (m Model) View() string {
 			bottomRow,
 		)
 		mainContent = content
-		footerText = timeStr + " | Press 'r' to refresh | Press 'f' to select stop | Press 'q' to quit"
+		footerText = timeStr + " | 'r': Refresh | 'S': Select Stop | 'R': Select Road | 'q': Quit"
 	}
 
 	var footer lipgloss.Style
-	if m.selectingStart || m.selectingEnd {
+	if m.selectingStart || m.selectingEnd || m.selectingRoad {
 		footer = selectionFooterStyle
 	} else {
 		footer = footerStyle
@@ -84,7 +87,7 @@ func (m Model) View() string {
 	}
 
 	// For selection view, we want to be more compact to avoid scrolling
-	if m.selectingStart || m.selectingEnd {
+	if m.selectingStart || m.selectingEnd || m.selectingRoad {
 		return lipgloss.JoinVertical(lipgloss.Left,
 			mainContent,
 			notification,

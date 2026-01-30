@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 )
 
@@ -142,10 +143,11 @@ func NormalizeTransit(line, stop string, departureInfos []struct {
 
 // NormalizeRoadConditions converts Digitraffic road data to domain RoadConditions model
 func NormalizeRoadConditions(region string, conditionData []struct {
-	Route       string
-	Temperature float64
-	Condition   string
-	Location    string
+	Route          string
+	Temperature    float64
+	AirTemperature float64
+	Condition      string
+	Location       string
 }) *RoadConditions {
 	var segments []RoadSegment
 
@@ -154,10 +156,11 @@ func NormalizeRoadConditions(region string, conditionData []struct {
 		condition := mapStringToRoadCondition(data.Condition, data.Temperature)
 
 		segment := RoadSegment{
-			Route:       data.Route,
-			Condition:   condition,
-			Temperature: data.Temperature,
-			Description: data.Condition,
+			Route:          data.Route,
+			Condition:      condition,
+			Temperature:    data.Temperature,
+			AirTemperature: data.AirTemperature,
+			Description:    data.Condition,
 		}
 
 		segments = append(segments, segment)
@@ -171,24 +174,33 @@ func NormalizeRoadConditions(region string, conditionData []struct {
 }
 
 // mapStringToRoadCondition maps condition string to domain RoadCondition
-func mapStringToRoadCondition(conditionStr string, temperature float64) RoadCondition {
-	lower := conditionStr
+func mapStringToRoadCondition(conditionStr string, _ float64) RoadCondition {
+	lower := strings.ToLower(conditionStr)
 
-	// Difficult conditions
-	if lower == "Icy" || lower == "Slippery" {
+	// The conditionStr is formatted as "Overall (Reason)" by parser.go
+	// We should check for specific keywords in order of priority.
+
+	if strings.Contains(lower, "very slippery") || strings.Contains(lower, "difficult") || strings.Contains(lower, "poor") {
 		return Difficult
 	}
 
-	// Slippery conditions
-	if lower == "Frosty" || lower == "Snowy" || lower == "Slushy" || lower == "Wet" {
+	if strings.Contains(lower, "slippery") {
 		return Slippery
 	}
 
-	// Temperature-based assessment
-	if temperature < 0 && (lower == "Moist" || lower == "Wet") {
+	// If it contains Normal, it is Normal, even if it is "Normal (Wet)"
+	if strings.Contains(lower, "normal") {
+		return Normal
+	}
+
+	// Fallback for dangerous reasons that might not have Overall prepended correctly
+	if strings.Contains(lower, "ice") || strings.Contains(lower, "freezing rain") || strings.Contains(lower, "snow") {
 		return Slippery
 	}
 
-	// Normal conditions
-	return Normal
+	if strings.Contains(lower, "dry") || strings.Contains(lower, "wet") || strings.Contains(lower, "moist") {
+		return Normal
+	}
+
+	return Unknown
 }

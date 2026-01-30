@@ -52,8 +52,8 @@ func (m Model) fetchRoadCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		m.logger.Debug("starting road conditions fetch")
-		roadConditions, err := m.coordinator.FetchRoadConditions(ctx)
+		m.logger.Debug("starting road conditions fetch", zap.String("region", m.selectedRoadRegion))
+		roadConditions, err := m.coordinator.FetchRoadConditions(ctx, m.selectedRoadRegion)
 
 		if err != nil {
 			m.logger.Error("road conditions fetch failed")
@@ -98,6 +98,43 @@ func clearCooldownCmd() tea.Cmd {
 	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
 		return clearCooldownMsg{}
 	})
+}
+
+// fetchRoadStationsCmd fetches all road stations (regions)
+func (m Model) fetchRoadStationsCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Fetch all conditions (empty region) to get list of available stations
+		m.logger.Debug("fetching road stations list")
+		conditions, err := m.coordinator.FetchRoadConditions(ctx, "*")
+
+		if err != nil {
+			return roadStationsFetchErrorMsg{err: err}
+		}
+
+		var stations []string
+		seen := make(map[string]bool)
+
+		if conditions != nil {
+			for _, cond := range conditions.Segments {
+				// With Forecast API, cond.Route is a descriptive string (e.g. "Vt 1: Helsinki - Turku")
+				// We can just use that directly as the selectable item.
+				// OR we can try to extract the city/region name if we want to mimic previous behavior.
+				// But "Vt 1: Helsinki - Turku" is a much better selectable item than just "Turku".
+				// So we use the full description.
+
+				name := cond.Route
+				if !seen[name] {
+					stations = append(stations, name)
+					seen[name] = true
+				}
+			}
+		}
+
+		return roadStationsFetchSuccessMsg{stations: stations}
+	}
 }
 
 // tickCmd returns a command that triggers every minute to update the clock

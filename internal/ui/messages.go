@@ -52,6 +52,17 @@ type stopsFetchErrorMsg struct {
 	err error
 }
 
+// Road station messages
+
+
+type roadStationsFetchSuccessMsg struct {
+	stations []string
+}
+
+type roadStationsFetchErrorMsg struct {
+	err error
+}
+
 // General messages
 type clearCooldownMsg struct{}
 

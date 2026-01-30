@@ -13,7 +13,7 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("39")).
 			Padding(1, 2).
-			Width(35)
+			Width(87) // Match width of top row (35 + 2 + 50)
 
 	roadTitleStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -27,6 +27,9 @@ var (
 
 	roadDifficultStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("196")) // Red
+
+	roadUnknownStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("243")) // Grey
 )
 
 // RenderRoad renders the road conditions panel
@@ -43,7 +46,13 @@ func RenderRoad(roadConditions *domain.RoadConditions, loading bool, err error) 
 		// Build road conditions list
 		lines := []string{}
 
+		count := 0
+		maxCount := 5
 		for _, segment := range roadConditions.Segments {
+			if count >= maxCount {
+				break
+			}
+			count++
 			var statusIcon string
 			var rowStyle lipgloss.Style
 
@@ -57,14 +66,18 @@ func RenderRoad(roadConditions *domain.RoadConditions, loading bool, err error) 
 			case domain.Difficult:
 				statusIcon = "✗"
 				rowStyle = roadDifficultStyle
+			case domain.Unknown:
+				statusIcon = "?"
+				rowStyle = roadUnknownStyle
 			}
 
 			// Format route and condition
-			line := fmt.Sprintf("%s %s: %s (%.1f°C)",
+			line := fmt.Sprintf("%s %-25s: %-18s Road: %5.1f°C  Air: %5.1f°C",
 				statusIcon,
 				segment.Route,
 				segment.Description,
 				segment.Temperature,
+				segment.AirTemperature,
 			)
 
 			lines = append(lines, rowStyle.Render(line))
@@ -73,10 +86,11 @@ func RenderRoad(roadConditions *domain.RoadConditions, loading bool, err error) 
 		// Add legend
 		if len(lines) > 0 {
 			lines = append(lines, "")
-			legend := fmt.Sprintf("%s Normal  %s Slippery  %s Difficult",
+			legend := fmt.Sprintf("%s Normal  %s Slippery  %s Difficult  %s Unknown",
 				roadNormalStyle.Render("✓"),
 				roadSlipperyStyle.Render("⚠"),
 				roadDifficultStyle.Render("✗"),
+				roadUnknownStyle.Render("?"),
 			)
 			lines = append(lines, weatherLabelStyle.Render(legend))
 		}
@@ -84,20 +98,9 @@ func RenderRoad(roadConditions *domain.RoadConditions, loading bool, err error) 
 		content = lipgloss.JoinVertical(lipgloss.Left, lines...)
 	}
 
-	title := roadTitleStyle.Render(fmt.Sprintf("Road Conditions (%s)", getRegionName(roadConditions)))
+	title := roadTitleStyle.Render("Road Conditions")
 
 	panel := lipgloss.JoinVertical(lipgloss.Left, title, "", content)
 
 	return roadBorderStyle.Render(panel)
-}
-
-// getRegionName returns the region name from road conditions data
-func getRegionName(roadConditions *domain.RoadConditions) string {
-	if roadConditions == nil {
-		return "?"
-	}
-	if roadConditions.Region == "" {
-		return "Turku"
-	}
-	return roadConditions.Region
 }

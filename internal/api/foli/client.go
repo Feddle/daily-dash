@@ -123,7 +123,7 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 				if checks >= limitChecks {
 					break
 				}
-				
+
 				if departures[i].TripID == "" {
 					continue
 				}
@@ -178,7 +178,7 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 						// Found destination stop
 						tripConnects = true
 						departures[i].DestinationStop = destStopID
-						
+
 						// Parse scheduled times
 						var scheduledStart, expectedStart time.Time
 
@@ -193,7 +193,7 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 						} else {
 							expectedStart = scheduledStart
 						}
-                        
+
 						// Calculate travel time based on GTFS difference
 						// This avoids issues with service day rollovers (e.g. 25:00:00)
 						if startGTFSTimeStr != "" && s.ArrivalTime != "" {
@@ -205,10 +205,10 @@ func (c *Client) FetchTransit(ctx context.Context, stopCode, destStopID, line st
 							if err1 == nil && err2 == nil {
 								startDur := time.Duration(h1)*time.Hour + time.Duration(m1)*time.Minute + time.Duration(s1)*time.Second
 								destDur := time.Duration(h2)*time.Hour + time.Duration(m2)*time.Minute + time.Duration(s2)*time.Second
-								
+
 								// Calculate relative travel time
 								travelTime := destDur - startDur
-								
+
 								// Apply to expected start time
 								departures[i].DestinationArrival = expectedStart.Add(travelTime)
 							}

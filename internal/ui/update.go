@@ -12,22 +12,43 @@ import (
 
 // Update handles Bubble Tea messages and updates the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle stop selection state
-	if m.selectingStart || m.selectingEnd {
+	// Handle selection states
+	if m.selectingStart || m.selectingEnd || m.selectingRoad {
 		switch msg := msg.(type) {
 		case tea.WindowSizeMsg:
 			m.width = msg.Width
 			m.height = msg.Height
-			m.stopList.SetSize(msg.Width, msg.Height-2)
+			if m.selectingRoad {
+				m.roadStationList.SetSize(msg.Width, msg.Height-2)
+			} else {
+				m.stopList.SetSize(msg.Width, msg.Height-2)
+			}
 
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "esc":
 				m.selectingStart = false
 				m.selectingEnd = false
+				m.selectingRoad = false
 				return m, nil
 
 			case "enter":
+				// Handle Road Selection
+				if m.selectingRoad {
+					selectedItem := m.roadStationList.SelectedItem()
+					if selectedItem != nil {
+						if stationItem, ok := selectedItem.(item); ok {
+							m.selectedRoadRegion = string(stationItem)
+							m.selectingRoad = false
+							m.roadLoading = true
+							m.roadErr = nil
+							return m, m.fetchRoadCmd()
+						}
+					}
+					return m, nil
+				}
+
+				// Handle Transit Stop Selection
 				selectedItem := m.stopList.SelectedItem()
 				if selectedItem != nil {
 					if stop, ok := selectedItem.(foli.GTFSStop); ok {
@@ -50,18 +71,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			default:
 				// Auto-enable filtering if the user types a character (and isn't already filtering)
-				if msg.Type == tea.KeyRunes && m.stopList.FilterState() != list.Filtering {
-					// Toggle filtering mode
-					m.stopList, _ = m.stopList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-					if msg.String() == "/" {
-						return m, nil
+				// For Road List
+				if m.selectingRoad && m.roadStationList.FilterState() != list.Filtering {
+					if msg.Type == tea.KeyRunes {
+						m.roadStationList, _ = m.roadStationList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+						if msg.String() == "/" {
+							return m, nil
+						}
+					}
+				} else if !m.selectingRoad && m.stopList.FilterState() != list.Filtering {
+					// For Transit List
+					if msg.Type == tea.KeyRunes {
+						m.stopList, _ = m.stopList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+						if msg.String() == "/" {
+							return m, nil
+						}
 					}
 				}
 			}
 		}
 
 		var cmd tea.Cmd
-		m.stopList, cmd = m.stopList.Update(msg)
+		if m.selectingRoad {
+			m.roadStationList, cmd = m.roadStationList.Update(msg)
+		} else {
+			m.stopList, cmd = m.stopList.Update(msg)
+		}
 		return m, cmd
 	}
 
@@ -92,11 +127,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.roadErr = nil
 			return m, m.fetchAllCmd()
 
-		case "f":
+		case "R": // Shift+r
+			if !m.loadingRoadStations {
+				// Check if we already have stations
+				if len(m.roadStations) > 0 {
+					m.selectingRoad = true
+					m.selectingStart = false // Ensure other modes are off
+					m.selectingEnd = false
+
+					m.roadStationList.Title = "Select Road Region"
+					m.roadStationList.ResetFilter()
+					m.roadStationList.SetItems(stringToItems(m.roadStations))
+					m.roadStationList.SetSize(m.width, m.height-2)
+					return m, nil
+				}
+				// Fetch stations
+				m.loadingRoadStations = true
+				return m, m.fetchRoadStationsCmd()
+			}
+
+		case "S": // Shift+s
 			if !m.loadingStops {
 				// Check if we already have stops
 				if len(m.stops) > 0 {
 					m.selectingStart = true
+					m.selectingRoad = false
+					m.selectingEnd = false
+
 					m.stopList.Title = "Select Start Stop"
 					m.stopList.ResetFilter()
 					m.stopList.SetItems(stopsToListItems(m.stops))
@@ -209,6 +266,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Maybe show a flash message? For now just log.
 		return m, nil
 
+	case roadStationsFetchSuccessMsg:
+		m.loadingRoadStations = false
+		m.roadStations = msg.stations
+		m.selectingRoad = true
+		m.selectingStart = false
+		m.selectingEnd = false
+
+		// Initialize list
+		items := stringToItems(m.roadStations)
+		m.roadStationList = list.New(items, list.NewDefaultDelegate(), m.width, m.height-2)
+		m.roadStationList.Title = "Select Road Region"
+		m.roadStationList.SetShowHelp(false)
+		m.roadStationList.SetShowStatusBar(false)
+		m.roadStationList.SetShowPagination(false)
+
+		// Disable keys
+		m.roadStationList.KeyMap.ShowFullHelp = key.NewBinding()
+		m.roadStationList.KeyMap.Quit = key.NewBinding()
+
+		return m, nil
+
+	case roadStationsFetchErrorMsg:
+		m.loadingRoadStations = false
+		m.logger.Error("failed to load road stations", zap.Error(msg.err))
+		return m, nil
+
 	case clearCooldownMsg:
 		m.showCooldownMsg = false
 		return m, nil
@@ -224,6 +307,21 @@ func stopsToListItems(stops []foli.GTFSStop) []list.Item {
 	items := make([]list.Item, len(stops))
 	for i, stop := range stops {
 		items[i] = stop
+	}
+	return items
+}
+
+// Simple string item for list
+type item string
+
+func (i item) FilterValue() string { return string(i) }
+func (i item) Title() string       { return string(i) }
+func (i item) Description() string { return "" }
+
+func stringToItems(strings []string) []list.Item {
+	items := make([]list.Item, len(strings))
+	for i, s := range strings {
+		items[i] = item(s)
 	}
 	return items
 }

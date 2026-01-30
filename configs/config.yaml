@@ -27,7 +27,7 @@ api:
 
   # Digitraffic Road Conditions API
   digitraffic:
-    base_url: "https://tie.digitraffic.fi/api/v1"
+    base_url: "https://tie.digitraffic.fi"
     region: "Turku"
     timeout: 15s
     retry_attempts: 3

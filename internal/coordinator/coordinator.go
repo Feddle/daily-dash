@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -200,61 +201,103 @@ func (c *Coordinator) FetchStops(ctx context.Context) ([]foli.GTFSStop, error) {
 	return c.foliClient.FetchStops(ctx)
 }
 
-// FetchRoadConditions fetches road conditions with caching
-func (c *Coordinator) FetchRoadConditions(ctx context.Context) (*domain.RoadConditions, error) {
-	c.logger.Debug("fetching road conditions with caching")
+// FetchRoadConditions fetches road conditions with caching for a specific region.
+// If region is empty, configuration default is used.
+func (c *Coordinator) FetchRoadConditions(ctx context.Context, region string) (*domain.RoadConditions, error) {
+	requestedRegion := region
+	if requestedRegion == "" {
+		requestedRegion = c.config.API.Digitraffic.Region
+	}
 
-	// Check cache first
+	c.logger.Debug("fetching road conditions with caching", zap.String("region", requestedRegion))
+
+	allKey := fmt.Sprintf("%s:*", cache.RoadConditionsCacheKey)
+	specificKey := fmt.Sprintf("%s:%s", cache.RoadConditionsCacheKey, requestedRegion)
+
+	// Helper to filter segments from a global RoadConditions object
+	filterSegments := func(fullData *domain.RoadConditions, filter string) *domain.RoadConditions {
+		if filter == "*" || filter == "" {
+			return fullData
+		}
+
+		var filtered []domain.RoadSegment
+		lowerFilter := strings.ToLower(filter)
+
+		for _, seg := range fullData.Segments {
+			if strings.Contains(strings.ToLower(seg.Route), lowerFilter) ||
+				strings.Contains(strings.ToLower(seg.Description), lowerFilter) {
+				filtered = append(filtered, seg)
+			}
+		}
+
+		return &domain.RoadConditions{
+			Region:    filter,
+			Segments:  filtered,
+			Timestamp: fullData.Timestamp,
+		}
+	}
+
 	if c.config.Cache.Enabled {
-		if cached, found := c.cache.Get(cache.RoadConditionsCacheKey); found {
-			c.logger.Debug("returning cached road conditions data")
-			if roadConditions, ok := cached.(*domain.RoadConditions); ok {
-				return roadConditions, nil
+		// 1. Check if we have ALL regions cached
+		if cached, found := c.cache.Get(allKey); found {
+			if allData, ok := cached.(*domain.RoadConditions); ok {
+				c.logger.Debug("returning road conditions from global cache", zap.String("region", requestedRegion))
+				return filterSegments(allData, requestedRegion), nil
+			}
+		}
+
+		// 2. Check if we have this SPECIFIC region cached
+		if cached, found := c.cache.Get(specificKey); found {
+			if specificData, ok := cached.(*domain.RoadConditions); ok {
+				c.logger.Debug("returning road conditions from specific cache", zap.String("region", requestedRegion))
+				return specificData, nil
 			}
 		}
 	}
 
-	// Cache miss or disabled - fetch from API
-	c.logger.Debug("cache miss, fetching from Digitraffic API")
-	conditions, err := c.digitrafficClient.FetchRoadConditions(ctx)
+	// Cache miss - fetch EVERYTHING from API to populate the global cache
+	c.logger.Debug("cache miss, fetching all road conditions from Digitraffic API")
+	conditions, err := c.digitrafficClient.FetchRoadConditions(ctx, "*")
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert to domain format
 	var conditionData []struct {
-		Route       string
-		Temperature float64
-		Condition   string
-		Location    string
+		Route          string
+		Temperature    float64
+		AirTemperature float64
+		Condition      string
+		Location       string
 	}
 
 	for _, cond := range conditions {
 		conditionData = append(conditionData, struct {
-			Route       string
-			Temperature float64
-			Condition   string
-			Location    string
+			Route          string
+			Temperature    float64
+			AirTemperature float64
+			Condition      string
+			Location       string
 		}{
-			Route:       cond.Route,
-			Temperature: cond.Temperature,
-			Condition:   cond.Condition,
-			Location:    cond.Location,
+			Route:          cond.Route,
+			Temperature:    cond.Temperature,
+			AirTemperature: cond.AirTemperature,
+			Condition:      cond.Condition,
+			Location:       cond.Location,
 		})
 	}
 
-	// Normalize to domain model
-	roadConditions := domain.NormalizeRoadConditions(c.config.API.Digitraffic.Region, conditionData)
+	// Normalize everything
+	allConditions := domain.NormalizeRoadConditions("All Finland", conditionData)
 
 	// Store in cache
 	if c.config.Cache.Enabled {
-		c.cache.Set(cache.RoadConditionsCacheKey, roadConditions, c.config.Cache.TTL.Road)
-		c.logger.Debug("road conditions data cached",
-			zap.Duration("ttl", c.config.Cache.TTL.Road),
-		)
+		c.cache.Set(allKey, allConditions, c.config.Cache.TTL.Road)
+		c.logger.Debug("global road conditions data cached")
 	}
 
-	return roadConditions, nil
+	// Filter and return the requested region
+	return filterSegments(allConditions, requestedRegion), nil
 }
 
 // FetchAll fetches all data concurrently using fan-out/fan-in pattern
@@ -325,7 +368,7 @@ func (c *Coordinator) FetchAll(ctx context.Context) (*domain.DashboardData, erro
 	// Fetch road conditions concurrently
 	g.Go(func() error {
 		fetchStart := time.Now()
-		roadConditions, err := c.FetchRoadConditions(gCtx)
+		roadConditions, err := c.FetchRoadConditions(gCtx, "")
 		fetchDuration := time.Since(fetchStart)
 
 		mu.Lock()
