@@ -3,6 +3,7 @@ package fmi
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/feddle/daily-dash/internal/api"
@@ -16,6 +17,7 @@ import (
 type Client struct {
 	httpClient *resty.Client
 	config     config.APIEndpointConfig
+	mu         sync.RWMutex
 	logger     *zap.Logger
 }
 
@@ -28,11 +30,24 @@ func NewClient(cfg config.APIEndpointConfig, logger *zap.Logger) *Client {
 	}
 }
 
+// SetLocation updates the weather location
+func (c *Client) SetLocation(location string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.config.Location = location
+}
+
 // FetchWeather fetches current weather data for the configured location
 func (c *Client) FetchWeather(ctx context.Context) (*ObservationData, error) {
 	startTime := time.Now()
+
+	c.mu.RLock()
+	location := c.config.Location
+	baseURL := c.config.BaseURL
+	c.mu.RUnlock()
+
 	c.logger.Info("fetching weather data",
-		zap.String("location", c.config.Location),
+		zap.String("location", location),
 	)
 
 	// Build FMI WFS query
@@ -42,8 +57,26 @@ func (c *Client) FetchWeather(ctx context.Context) (*ObservationData, error) {
 		"version":        "2.0.0",
 		"request":        "getFeature",
 		"storedquery_id": "fmi::observations::weather::timevaluepair",
-		"place":          c.config.Location,
 		"parameters":     "t2m,rh,ws_10min",
+	}
+
+	// Use fmisid if location is numeric, otherwise use place
+	isNumeric := true
+	if location == "" {
+		isNumeric = false
+	} else {
+		for _, r := range location {
+			if r < '0' || r > '9' {
+				isNumeric = false
+				break
+			}
+		}
+	}
+
+	if isNumeric {
+		queryParams["fmisid"] = location
+	} else {
+		queryParams["place"] = location
 	}
 
 	var responseData []byte
@@ -54,7 +87,7 @@ func (c *Client) FetchWeather(ctx context.Context) (*ObservationData, error) {
 		resp, err := c.httpClient.R().
 			SetContext(ctx).
 			SetQueryParams(queryParams).
-			Get(c.config.BaseURL)
+			Get(baseURL)
 
 		if err != nil {
 			fetchErr = err
@@ -99,4 +132,77 @@ func (c *Client) FetchWeather(ctx context.Context) (*ObservationData, error) {
 	)
 
 	return data, nil
+}
+
+// FetchStations fetches the complete list of weather stations from FMI API
+func (c *Client) FetchStations(ctx context.Context) ([]WeatherStation, error) {
+	startTime := time.Now()
+
+	c.mu.RLock()
+	baseURL := c.config.BaseURL
+	c.mu.RUnlock()
+
+	c.logger.Info("fetching weather stations from FMI")
+
+	// Build FMI WFS query for stations
+	// Using fmi::ef::stations stored query with networkid 121 (FMI observation network)
+	queryParams := map[string]string{
+		"service":        "WFS",
+		"version":        "2.0.0",
+		"request":        "getFeature",
+		"storedquery_id": "fmi::ef::stations",
+		"networkid":      "121", // FMI observation network - filters out marine/aviation stations
+	}
+
+	var responseData []byte
+	var fetchErr error
+
+	// Execute request with retry logic
+	err := api.RetryWithBackoff(ctx, func() error {
+		resp, err := c.httpClient.R().
+			SetContext(ctx).
+			SetQueryParams(queryParams).
+			Get(baseURL)
+
+		if err != nil {
+			fetchErr = err
+			return err
+		}
+
+		if resp.StatusCode() != 200 {
+			fetchErr = domain.NewAPIError("FMI", "fetch stations", resp.StatusCode(),
+				fmt.Errorf("unexpected status code: %d", resp.StatusCode()))
+			return fetchErr
+		}
+
+		responseData = resp.Body()
+		return nil
+	}, c.logger, "FMI")
+
+	if err != nil {
+		c.logger.Error("failed to fetch weather stations",
+			zap.Error(err),
+			zap.Duration("elapsed", time.Since(startTime)),
+		)
+		if fetchErr != nil {
+			return nil, fetchErr
+		}
+		return nil, domain.NewAPIError("FMI", "fetch stations", 0, err)
+	}
+
+	// Parse the response
+	stations, err := ParseStationsResponse(responseData)
+	if err != nil {
+		c.logger.Error("failed to parse stations response",
+			zap.Error(err),
+		)
+		return nil, domain.NewAPIError("FMI", "parse stations", 0, err)
+	}
+
+	c.logger.Info("successfully fetched weather stations",
+		zap.Int("station_count", len(stations)),
+		zap.Duration("elapsed", time.Since(startTime)),
+	)
+
+	return stations, nil
 }

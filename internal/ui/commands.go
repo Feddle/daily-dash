@@ -143,3 +143,34 @@ func tickCmd() tea.Cmd {
 		return tickMsg{time: t}
 	})
 }
+
+// updateWeatherLocationCmd updates the location and triggers a fetch
+func (m Model) updateWeatherLocationCmd(location string) tea.Cmd {
+	return func() tea.Msg {
+		m.coordinator.SetWeatherLocation(location)
+		// We trigger the fetch immediately, but we can reuse the existing fetchWeatherCmd
+		// However, we need to return a Msg that update.go can handle if we want to chain things,
+		// or we can just return the fetch command directly.
+		// Since SetWeatherLocation is synchronous and thread-safe, we can just return the fetch cmd.
+		return m.fetchWeatherCmd()()
+	}
+}
+
+// fetchWeatherStationsCmd fetches weather stations asynchronously
+func (m Model) fetchWeatherStationsCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		m.logger.Debug("starting weather stations fetch")
+		stations, err := m.coordinator.FetchWeatherStations(ctx)
+
+		if err != nil {
+			m.logger.Error("weather stations fetch failed", zap.Error(err))
+			return weatherStationsFetchErrorMsg{err: err}
+		}
+
+		m.logger.Debug("weather stations fetch successful", zap.Int("count", len(stations)))
+		return weatherStationsFetchSuccessMsg{stations: stations}
+	}
+}

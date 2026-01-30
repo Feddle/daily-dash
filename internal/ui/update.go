@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/feddle/daily-dash/internal/api/fmi"
 	"github.com/feddle/daily-dash/internal/api/foli"
 	"go.uber.org/zap"
 )
@@ -13,6 +14,51 @@ import (
 // Update handles Bubble Tea messages and updates the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle selection states
+	// Handle selection states
+	if m.selectingLocation {
+		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+			m.weatherList.SetSize(msg.Width, msg.Height-2)
+
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				m.selectingLocation = false
+				return m, nil
+			case "enter":
+				selectedItem := m.weatherList.SelectedItem()
+				if selectedItem != nil {
+					if wi, ok := selectedItem.(weatherItem); ok {
+						m.selectingLocation = false
+						m.weatherLoading = true
+						return m, m.updateWeatherLocationCmd(wi.id)
+					}
+					if i, ok := selectedItem.(item); ok {
+						m.selectingLocation = false
+						m.weatherLoading = true
+						return m, m.updateWeatherLocationCmd(string(i))
+					}
+				}
+				return m, nil
+			default:
+				// Auto-enable filtering
+				if m.weatherList.FilterState() != list.Filtering {
+					if msg.Type == tea.KeyRunes {
+						m.weatherList, _ = m.weatherList.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+						if msg.String() == "/" {
+							return m, nil
+						}
+					}
+				}
+			}
+		}
+		var cmd tea.Cmd
+		m.weatherList, cmd = m.weatherList.Update(msg)
+		return m, cmd
+	}
+
 	if m.selectingStart || m.selectingEnd || m.selectingRoad {
 		switch msg := msg.(type) {
 		case tea.WindowSizeMsg:
@@ -164,6 +210,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.loadingStops = true
 				return m, m.fetchStopsCmd()
 			}
+
+		case "W": // Shift+w for Weather Location
+			if !m.loadingStations {
+				// If stations already cached, show immediately
+				if len(m.weatherStations) > 0 {
+					m.selectingLocation = true
+					m.selectingStart = false
+					m.selectingEnd = false
+					m.selectingRoad = false
+					m.weatherList.ResetFilter()
+					m.weatherList.SetItems(weatherStationsToItems(m.weatherStations))
+					m.weatherList.SetSize(m.width, m.height-2)
+					return m, nil
+				}
+				// First time: fetch stations
+				m.loadingStations = true
+				return m, m.fetchWeatherStationsCmd()
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -292,6 +356,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.Error("failed to load road stations", zap.Error(msg.err))
 		return m, nil
 
+	case weatherStationsFetchSuccessMsg:
+		m.loadingStations = false
+		m.weatherStations = msg.stations
+		m.selectingLocation = true
+		m.selectingStart = false
+		m.selectingEnd = false
+		m.selectingRoad = false
+
+		// Initialize list
+		items := weatherStationsToItems(m.weatherStations)
+		m.weatherList = list.New(items, list.NewDefaultDelegate(), m.width, m.height-2)
+		m.weatherList.Title = "Select Weather Location"
+		m.weatherList.SetShowHelp(false)
+		m.weatherList.SetShowStatusBar(false)
+		m.weatherList.SetShowPagination(false)
+		m.weatherList.KeyMap.ShowFullHelp = key.NewBinding()
+		m.weatherList.KeyMap.Quit = key.NewBinding()
+		return m, nil
+
+	case weatherStationsFetchErrorMsg:
+		m.loadingStations = false
+		m.logger.Error("failed to load weather stations, using fallback", zap.Error(msg.err))
+
+		// Use fallback stations
+		m.weatherStations = fmi.FallbackStations
+		m.selectingLocation = true
+		m.selectingStart = false
+		m.selectingEnd = false
+		m.selectingRoad = false
+
+		// Initialize list with fallback
+		items := weatherStationsToItems(m.weatherStations)
+		m.weatherList = list.New(items, list.NewDefaultDelegate(), m.width, m.height-2)
+		m.weatherList.Title = "Select Weather Location (Fallback)"
+		m.weatherList.SetShowHelp(false)
+		m.weatherList.SetShowStatusBar(false)
+		m.weatherList.SetShowPagination(false)
+		m.weatherList.KeyMap.ShowFullHelp = key.NewBinding()
+		m.weatherList.KeyMap.Quit = key.NewBinding()
+		return m, nil
+
 	case clearCooldownMsg:
 		m.showCooldownMsg = false
 		return m, nil
@@ -322,6 +427,23 @@ func stringToItems(strings []string) []list.Item {
 	items := make([]list.Item, len(strings))
 	for i, s := range strings {
 		items[i] = item(s)
+	}
+	return items
+}
+
+type weatherItem struct {
+	name string
+	id   string
+}
+
+func (i weatherItem) FilterValue() string { return i.name }
+func (i weatherItem) Title() string       { return i.name }
+func (i weatherItem) Description() string { return i.id }
+
+func weatherStationsToItems(stations []fmi.WeatherStation) []list.Item {
+	items := make([]list.Item, len(stations))
+	for i, s := range stations {
+		items[i] = weatherItem{name: s.Name, id: s.FMISID}
 	}
 	return items
 }

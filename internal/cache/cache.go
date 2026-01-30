@@ -22,7 +22,8 @@ type Cache interface {
 
 // CacheKey constants for different data types
 const (
-	WeatherCacheKey        = "weather"
-	TransitCacheKey        = "transit"
-	RoadConditionsCacheKey = "road_conditions"
+	WeatherCacheKey         = "weather"
+	TransitCacheKey         = "transit"
+	RoadConditionsCacheKey  = "road_conditions"
+	WeatherStationsCacheKey = "weather_stations"
 )

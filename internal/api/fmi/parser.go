@@ -4,7 +4,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/feddle/daily-dash/internal/domain"
 )
@@ -116,4 +118,95 @@ func DetermineConditions(temperature, humidity float64) string {
 	}
 
 	return "Partly Cloudy"
+}
+
+// ParseStationsResponse parses the FMI stations XML response into WeatherStation slice
+func ParseStationsResponse(xmlData []byte) ([]WeatherStation, error) {
+	var response StationsWFSResponse
+	if err := xml.Unmarshal(xmlData, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal XML: %w", err)
+	}
+
+	if len(response.Members) == 0 {
+		return nil, domain.ErrInvalidResponse
+	}
+
+	now := time.Now()
+	stations := make([]WeatherStation, 0, len(response.Members))
+
+	for _, member := range response.Members {
+		facility := member.Facility
+
+		// Extract FMISID from InspireID
+		fmisid := facility.InspireID.Identifier.LocalID
+		if fmisid == "" {
+			continue // Skip stations without FMISID
+		}
+
+		// Parse latitude and longitude from RepresentativePoint.Point.Pos
+		lat, lon, err := parsePosition(facility.RepresentativePoint.Point.Pos)
+		if err != nil {
+			// Log warning but continue - we can still use the station without coordinates
+			continue
+		}
+
+		// Check if station is active
+		active := isStationActive(facility.Period.Period.ActivityTime.TimePeriod, now)
+		if !active {
+			continue // Skip inactive stations
+		}
+
+		station := WeatherStation{
+			Name:      facility.Name,
+			FMISID:    fmisid,
+			Latitude:  lat,
+			Longitude: lon,
+			Active:    active,
+		}
+
+		stations = append(stations, station)
+	}
+
+	if len(stations) == 0 {
+		return nil, fmt.Errorf("no active stations found in response")
+	}
+
+	return stations, nil
+}
+
+// parsePosition parses the "lat lon" format from Point.Pos
+func parsePosition(pos string) (lat, lon float64, err error) {
+	parts := strings.Fields(pos)
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("invalid position format: %s", pos)
+	}
+
+	lat, err = strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid latitude: %s", parts[0])
+	}
+
+	lon, err = strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid longitude: %s", parts[1])
+	}
+
+	return lat, lon, nil
+}
+
+// isStationActive checks if a station is currently active
+func isStationActive(period TimePeriod, now time.Time) bool {
+	// If end date is empty, station is active
+	if period.End == "" {
+		return true
+	}
+
+	// Parse end date and check if it's in the future
+	endTime, err := time.Parse(time.RFC3339, period.End)
+	if err != nil {
+		// If we can't parse the end date, assume active
+		return true
+	}
+
+	return endTime.After(now)
 }

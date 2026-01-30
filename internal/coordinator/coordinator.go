@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,8 +18,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Coordinator orchestrates data fetching from multiple APIs
 type Coordinator struct {
+	mu                sync.RWMutex
 	fmiClient         *fmi.Client
 	foliClient        *foli.Client
 	digitrafficClient *digitraffic.Client
@@ -37,6 +38,21 @@ func New(cfg *config.Config, logger *zap.Logger, cache cache.Cache) *Coordinator
 		config:            cfg,
 		logger:            logger,
 	}
+}
+
+// SetWeatherLocation updates the weather location
+func (c *Coordinator) SetWeatherLocation(location string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Update internal config
+	c.config.API.FMI.Location = location
+
+	// Update client
+	c.fmiClient.SetLocation(location)
+
+	// Invalidate weather cache
+	c.cache.Delete(cache.WeatherCacheKey)
 }
 
 // FetchWeather fetches weather data with caching
@@ -60,12 +76,16 @@ func (c *Coordinator) FetchWeather(ctx context.Context) (*domain.Weather, error)
 		return nil, err
 	}
 
+	c.mu.RLock()
+	location := c.config.API.FMI.Location
+	c.mu.RUnlock()
+
 	// Normalize to domain model
 	weather := domain.NormalizeWeather(
 		data.Temperature,
 		data.Humidity,
 		data.WindSpeed,
-		c.config.API.FMI.Location,
+		location,
 		data.Time,
 	)
 
@@ -199,6 +219,44 @@ func (c *Coordinator) FetchTransit(ctx context.Context, stopCode, stopName, dest
 // FetchStops fetches all stops from Föli API
 func (c *Coordinator) FetchStops(ctx context.Context) ([]foli.GTFSStop, error) {
 	return c.foliClient.FetchStops(ctx)
+}
+
+// FetchWeatherStations fetches weather stations with caching
+func (c *Coordinator) FetchWeatherStations(ctx context.Context) ([]fmi.WeatherStation, error) {
+	c.logger.Debug("fetching weather stations with caching")
+
+	// Check cache first
+	if c.config.Cache.Enabled {
+		if cached, found := c.cache.Get(cache.WeatherStationsCacheKey); found {
+			c.logger.Debug("returning cached weather stations")
+			if stations, ok := cached.([]fmi.WeatherStation); ok {
+				return stations, nil
+			}
+		}
+	}
+
+	// Cache miss or disabled - fetch from API
+	c.logger.Debug("cache miss, fetching from FMI API")
+	stations, err := c.fmiClient.FetchStations(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort stations alphabetically for better UX
+	sort.Slice(stations, func(i, j int) bool {
+		return stations[i].Name < stations[j].Name
+	})
+
+	// Store in cache
+	if c.config.Cache.Enabled {
+		c.cache.Set(cache.WeatherStationsCacheKey, stations, c.config.Cache.TTL.Stations)
+		c.logger.Debug("weather stations cached",
+			zap.Duration("ttl", c.config.Cache.TTL.Stations),
+			zap.Int("count", len(stations)),
+		)
+	}
+
+	return stations, nil
 }
 
 // FetchRoadConditions fetches road conditions with caching for a specific region.

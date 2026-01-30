@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	"github.com/feddle/daily-dash/internal/api/fmi"
 	"github.com/feddle/daily-dash/internal/api/foli"
 	"github.com/feddle/daily-dash/internal/domain"
 )
@@ -54,12 +55,21 @@ type stopsFetchErrorMsg struct {
 
 // Road station messages
 
-
 type roadStationsFetchSuccessMsg struct {
 	stations []string
 }
 
 type roadStationsFetchErrorMsg struct {
+	err error
+}
+
+// Weather station messages
+
+type weatherStationsFetchSuccessMsg struct {
+	stations []fmi.WeatherStation
+}
+
+type weatherStationsFetchErrorMsg struct {
 	err error
 }
 

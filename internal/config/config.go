@@ -46,9 +46,10 @@ type CacheConfig struct {
 
 // CacheTTLConfig contains TTL settings for different data types
 type CacheTTLConfig struct {
-	Weather time.Duration `mapstructure:"weather"`
-	Transit time.Duration `mapstructure:"transit"`
-	Road    time.Duration `mapstructure:"road"`
+	Weather  time.Duration `mapstructure:"weather"`
+	Transit  time.Duration `mapstructure:"transit"`
+	Road     time.Duration `mapstructure:"road"`
+	Stations time.Duration `mapstructure:"stations"`
 }
 
 // LoggingConfig contains logging settings

@@ -86,6 +86,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("cache.ttl.weather", "10m")
 	v.SetDefault("cache.ttl.transit", "2m")
 	v.SetDefault("cache.ttl.road", "15m")
+	v.SetDefault("cache.ttl.stations", "24h")
 
 	// Logging defaults
 	v.SetDefault("logging.level", "info")

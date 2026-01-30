@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/feddle/daily-dash/internal/api/fmi"
 	"github.com/feddle/daily-dash/internal/api/foli"
 	"github.com/feddle/daily-dash/internal/config"
 	"github.com/feddle/daily-dash/internal/coordinator"
@@ -57,6 +58,12 @@ type Model struct {
 	roadStations        []string
 	roadStationList     list.Model
 	selectedRoadRegion  string
+
+	// Weather Location Selection
+	selectingLocation bool
+	loadingStations   bool
+	weatherStations   []fmi.WeatherStation
+	weatherList       list.Model
 }
 
 // NewModel creates a new UI model
@@ -94,5 +101,9 @@ func NewModel(coord *coordinator.Coordinator, logger *zap.Logger, cfg *config.Co
 		roadStations:        nil,
 		roadStationList:     list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 		selectedRoadRegion:  "", // Will use config default if empty
+		selectingLocation:   false,
+		loadingStations:     false,
+		weatherStations:     nil,
+		weatherList:         list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 	}
 }

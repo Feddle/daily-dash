@@ -5,7 +5,6 @@ This document outlines planned features, improvements, and maintenance tasks for
 ## 🛠 User Experience & Customization
 
 ### Location & Configuration
-- **Road Condition Selection**: Implement a UI for selecting the region or specific road segments for condition reports.
 - **Weather Location Selection**: Allow users to search for and set their preferred city/location for weather updates.
 - **Persistent Settings**: Ensure that user selections (bus stops, weather location, road regions) are saved to a config file and restored upon restarting the application.
 

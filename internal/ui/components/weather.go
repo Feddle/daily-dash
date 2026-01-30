@@ -75,7 +75,12 @@ func RenderWeather(weather *domain.Weather, loading bool, err error) string {
 		content = lipgloss.JoinVertical(lipgloss.Left, lines...)
 	}
 
-	title := weatherTitleStyle.Render("Weather (Turku)")
+	locationName := "Unknown"
+	if weather != nil && weather.Location != "" {
+		locationName = weather.Location
+	}
+
+	title := weatherTitleStyle.Render(fmt.Sprintf("Weather (%s)", locationName))
 
 	panel := lipgloss.JoinVertical(lipgloss.Left, title, "", content)
 

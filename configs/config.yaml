@@ -42,6 +42,7 @@ cache:
     weather: 10m
     transit: 2m
     road: 15m
+    stations: 24h
 
 logging:
   # Log level: debug, info, warn, error

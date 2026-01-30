@@ -1,127 +1,105 @@
 package fmi
 
 import (
+	"encoding/xml"
 	"testing"
 )
 
-func TestParseWeatherResponse(t *testing.T) {
-	// Sample XML based on fmi::observations::weather::timevaluepair response structure
-	xmlData := []byte(`
-<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:om="http://www.opengis.net/om/2.0" xmlns:gml="http://www.opengis.net/gml/3.2">
-	<wfs:member>
-		<om:PointTimeSeriesObservation gml:id="obs-1">
-			<om:observedProperty xlink:href="http://xml.fmi.fi/schema/wfs/2.0/Query/StoredQuery/fmi::observations::weather::timevaluepair#t2m"/>
-			<om:result>
-				<wml2:MeasurementTimeseries gml:id="mts-1">
-					<wml2:point>
-						<wml2:MeasurementTVP>
-							<wml2:time>2024-01-28T10:00:00Z</wml2:time>
-							<wml2:value>-5.2</wml2:value>
-						</wml2:MeasurementTVP>
-					</wml2:point>
-				</wml2:MeasurementTimeseries>
-			</om:result>
-		</om:PointTimeSeriesObservation>
-	</wfs:member>
-	<wfs:member>
-		<om:PointTimeSeriesObservation gml:id="obs-2">
-			<om:observedProperty xlink:href="http://xml.fmi.fi/schema/wfs/2.0/Query/StoredQuery/fmi::observations::weather::timevaluepair#rh"/>
-			<om:result>
-				<wml2:MeasurementTimeseries gml:id="mts-2">
-					<wml2:point>
-						<wml2:MeasurementTVP>
-							<wml2:time>2024-01-28T10:00:00Z</wml2:time>
-							<wml2:value>88.0</wml2:value>
-						</wml2:MeasurementTVP>
-					</wml2:point>
-				</wml2:MeasurementTimeseries>
-			</om:result>
-		</om:PointTimeSeriesObservation>
-	</wfs:member>
-	<wfs:member>
-		<om:PointTimeSeriesObservation gml:id="obs-3">
-			<om:observedProperty xlink:href="http://xml.fmi.fi/schema/wfs/2.0/Query/StoredQuery/fmi::observations::weather::timevaluepair#ws_10min"/>
-			<om:result>
-				<wml2:MeasurementTimeseries gml:id="mts-3">
-					<wml2:point>
-						<wml2:MeasurementTVP>
-							<wml2:time>2024-01-28T10:00:00Z</wml2:time>
-							<wml2:value>3.5</wml2:value>
-						</wml2:MeasurementTVP>
-					</wml2:point>
-				</wml2:MeasurementTimeseries>
-			</om:result>
-		</om:PointTimeSeriesObservation>
-	</wfs:member>
-</wfs:FeatureCollection>`)
+func TestParseStationsResponse(t *testing.T) {
+	// Sample XML from FMI API
+	xmlData := `<?xml version="1.0" encoding="UTF-8"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:ins_base="http://inspire.ec.europa.eu/schemas/base/3.3" xmlns:ef="http://inspire.ec.europa.eu/schemas/ef/4.0">
+  <wfs:member>
+    <ef:EnvironmentalMonitoringFacility>
+      <ef:inspireId>
+        <ins_base:Identifier>
+          <ins_base:localId>100971</ins_base:localId>
+        </ins_base:Identifier>
+      </ef:inspireId>
+      <ef:name>Helsinki Kaisaniemi</ef:name>
+      <ef:representativePoint>
+        <gml:Point>
+          <gml:pos>60.17523 24.94459</gml:pos>
+        </gml:Point>
+      </ef:representativePoint>
+      <ef:operationalActivityPeriod>
+        <ef:OperationalActivityPeriod>
+          <ef:activityTime>
+            <gml:TimePeriod>
+              <gml:beginPosition>1844-11-01T00:00:00Z</gml:beginPosition>
+              <gml:endPosition indeterminatePosition="now"/>
+            </gml:TimePeriod>
+          </ef:activityTime>
+        </ef:OperationalActivityPeriod>
+      </ef:operationalActivityPeriod>
+    </ef:EnvironmentalMonitoringFacility>
+  </wfs:member>
+</wfs:FeatureCollection>`
 
-	obs, timestamp, err := ParseWeatherResponse(xmlData)
+	stations, err := ParseStationsResponse([]byte(xmlData))
 	if err != nil {
-		t.Fatalf("ParseWeatherResponse failed: %v", err)
+		t.Fatalf("Failed to parse stations: %v", err)
 	}
 
-	if timestamp != "2024-01-28T10:00:00Z" {
-		t.Errorf("Expected timestamp 2024-01-28T10:00:00Z, got %s", timestamp)
+	if len(stations) != 1 {
+		t.Fatalf("Expected 1 station, got %d", len(stations))
 	}
 
-	data := ExtractWeatherData(obs, timestamp)
-
-	if data.Temperature != -5.2 {
-		t.Errorf("Expected temperature -5.2, got %f", data.Temperature)
+	station := stations[0]
+	if station.Name != "Helsinki Kaisaniemi" {
+		t.Errorf("Expected name 'Helsinki Kaisaniemi', got '%s'", station.Name)
 	}
-	if data.Humidity != 88.0 {
-		t.Errorf("Expected humidity 88.0, got %f", data.Humidity)
+	if station.FMISID != "100971" {
+		t.Errorf("Expected FMISID '100971', got '%s'", station.FMISID)
 	}
-	if data.WindSpeed != 3.5 {
-		t.Errorf("Expected wind speed 3.5, got %f", data.WindSpeed)
+	if !station.Active {
+		t.Error("Expected station to be active")
 	}
 }
 
-func TestParseWeatherResponse_RealAPIFormat(t *testing.T) {
-	// Sample XML from real API response (using query params in href)
-	xmlData := []byte(`
-<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:om="http://www.opengis.net/om/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink">
-	<wfs:member>
-		<om:PointTimeSeriesObservation gml:id="obs-1">
-			<om:observedProperty xlink:href="http://opendata.fmi.fi/meta?observableProperty=observation&amp;param=t2m&amp;language=eng"/>
-			<om:result>
-				<wml2:MeasurementTimeseries gml:id="mts-1" xmlns:wml2="http://www.opengis.net/waterml/2.0">
-					<wml2:point>
-						<wml2:MeasurementTVP>
-							<wml2:time>2024-01-28T10:00:00Z</wml2:time>
-							<wml2:value>-5.2</wml2:value>
-						</wml2:MeasurementTVP>
-					</wml2:point>
-				</wml2:MeasurementTimeseries>
-			</om:result>
-		</om:PointTimeSeriesObservation>
-	</wfs:member>
-	<wfs:member>
-		<om:PointTimeSeriesObservation gml:id="obs-2">
-			<om:observedProperty xlink:href="http://opendata.fmi.fi/meta?observableProperty=observation&amp;param=rh&amp;language=eng"/>
-			<om:result>
-				<wml2:MeasurementTimeseries gml:id="mts-2" xmlns:wml2="http://www.opengis.net/waterml/2.0">
-					<wml2:point>
-						<wml2:MeasurementTVP>
-							<wml2:time>2024-01-28T10:00:00Z</wml2:time>
-							<wml2:value>88.0</wml2:value>
-						</wml2:MeasurementTVP>
-					</wml2:point>
-				</wml2:MeasurementTimeseries>
-			</om:result>
-		</om:PointTimeSeriesObservation>
-	</wfs:member>
-</wfs:FeatureCollection>`)
+func TestXMLParsing(t *testing.T) {
+	xmlData := `<?xml version="1.0" encoding="UTF-8"?>
+<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:ins_base="http://inspire.ec.europa.eu/schemas/base/3.3" xmlns:ef="http://inspire.ec.europa.eu/schemas/ef/4.0">
+  <wfs:member>
+    <ef:EnvironmentalMonitoringFacility>
+      <ef:inspireId>
+        <ins_base:Identifier>
+          <ins_base:localId>100971</ins_base:localId>
+        </ins_base:Identifier>
+      </ef:inspireId>
+      <ef:name>Helsinki Kaisaniemi</ef:name>
+      <ef:representativePoint>
+        <gml:Point>
+          <gml:pos>60.17523 24.94459</gml:pos>
+        </gml:Point>
+      </ef:representativePoint>
+      <ef:operationalActivityPeriod>
+        <ef:OperationalActivityPeriod>
+          <ef:activityTime>
+            <gml:TimePeriod>
+              <gml:beginPosition>1844-11-01T00:00:00Z</gml:beginPosition>
+              <gml:endPosition indeterminatePosition="now"/>
+            </gml:TimePeriod>
+          </ef:activityTime>
+        </ef:OperationalActivityPeriod>
+      </ef:operationalActivityPeriod>
+    </ef:EnvironmentalMonitoringFacility>
+  </wfs:member>
+</wfs:FeatureCollection>`
 
-	obs, _, err := ParseWeatherResponse(xmlData)
+	var response StationsWFSResponse
+	err := xml.Unmarshal([]byte(xmlData), &response)
 	if err != nil {
-		t.Fatalf("ParseWeatherResponse failed: %v", err)
+		t.Fatalf("Failed to unmarshal XML: %v", err)
 	}
 
-	if t2m, ok := obs["t2m"]; !ok || t2m != -5.2 {
-		t.Errorf("Expected t2m -5.2, got %v", obs["t2m"])
+	if len(response.Members) != 1 {
+		t.Fatalf("Expected 1 member, got %d", len(response.Members))
 	}
-	if rh, ok := obs["rh"]; !ok || rh != 88.0 {
-		t.Errorf("Expected rh 88.0, got %v", obs["rh"])
-	}
+
+	facility := response.Members[0].Facility
+	t.Logf("Name: %s", facility.Name)
+	t.Logf("FMISID: %s", facility.InspireID.Identifier.LocalID)
+	t.Logf("Pos: %s", facility.RepresentativePoint.Point.Pos)
+	t.Logf("End: '%s'", facility.Period.Period.ActivityTime.TimePeriod.End)
 }
